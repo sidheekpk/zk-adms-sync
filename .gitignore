@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+*.log
+*.tgz
+.env
+.env.*
+!.env.example
+apps/adms/data/
+apps/adms/logs/
+data/*.db
+data/*.db-journal

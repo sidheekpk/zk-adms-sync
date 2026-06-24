@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZK Connect — RadixHR Device Manager (Wireframe)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .nav-link.active { background: #1f2937; color: white; }
+  .wf-note { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; font-size: 12px; color: #78350f; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-gray { background: #e5e7eb; color: #374151; }
+  .badge-amber { background: #fef3c7; color: #78350f; }
+  table { width: 100%; font-size: 14px; }
+  th { text-align: left; font-weight: 600; padding: 10px 12px; background: #f9fafb; color: #374151; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 12px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+  tr:hover td { background: #fafafa; }
+  .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .input, .select { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 14px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: #1f2937; color: white; }
+  .btn-primary:hover { background: #111827; }
+  .btn-secondary { background: white; border: 1px solid #d1d5db; color: #374151; }
+  .btn-secondary:hover { background: #f9fafb; }
+  .btn-danger { background: #dc2626; color: white; }
+  .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+  .stat-card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: #111827; margin-top: 4px; }
+  .stat-card .delta { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .section-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; padding: 12px 16px 6px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Top scope switcher (wireframe convenience only) -->
+<div class="bg-amber-500 text-amber-950 text-xs px-4 py-2 flex items-center justify-between">
+  <div><strong>Wireframe preview</strong> — clickable navigation, no real data. Switch persona:</div>
+  <div class="flex gap-2">
+    <button onclick="setScope('super')" id="scope-super" class="px-3 py-1 rounded bg-white">Super-admin (RadixHR ops)</button>
+    <button onclick="setScope('tenant')" id="scope-tenant" class="px-3 py-1 rounded bg-amber-700 text-white">Tenant-admin (2DOT4 Diamonds)</button>
+    <button onclick="show('login')" class="px-3 py-1 rounded bg-amber-900 text-white">Login</button>
+  </div>
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-gray-900 text-gray-300 flex flex-col">
+    <div class="px-5 py-5 border-b border-gray-800">
+      <div class="text-white font-bold text-lg">ZK Connect</div>
+      <div class="text-xs text-gray-400 mt-0.5">RadixHR Device Manager</div>
+    </div>
+
+    <!-- Super-admin nav -->
+    <nav id="nav-super" class="flex-1">
+      <div class="section-label text-gray-500">Overview</div>
+      <a onclick="show('super-dashboard')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Dashboard</a>
+      <a onclick="show('super-tenants')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Tenants</a>
+      <a onclick="show('super-devices')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">All Devices</a>
+      <div class="section-label text-gray-500">Platform</div>
+      <a onclick="show('super-sync-targets')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">RadixHR Sync Targets</a>
+      <a onclick="show('super-audit')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Audit Log</a>
+      <a onclick="show('super-health')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">System Health</a>
+      <a onclick="show('super-users')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Admin Users &amp; Roles</a>
+      <div class="section-label text-gray-500">Security</div>
+      <a onclick="show('super-security')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Security Settings</a>
+      <a onclick="show('super-certs')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Device Certificates (mTLS)</a>
+    </nav>
+
+    <!-- Tenant-admin nav -->
+    <nav id="nav-tenant" class="flex-1 hidden">
+      <div class="px-5 py-2 text-xs text-gray-400 border-b border-gray-800">Tenant: <span class="text-white font-medium">2DOT4 Diamonds LLC</span></div>
+      <div class="section-label text-gray-500">Operations</div>
+      <a onclick="show('tenant-dashboard')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Dashboard</a>
+      <a onclick="show('tenant-live')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Live Feed</a>
+      <a onclick="show('tenant-attendance')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Attendance</a>
+      <div class="section-label text-gray-500">Devices</div>
+      <a onclick="show('tenant-devices')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Devices</a>
+      <a onclick="show('tenant-device-detail')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer pl-8">↳ Device Detail</a>
+      <a onclick="show('tenant-commands')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Command Center</a>
+      <div class="section-label text-gray-500">Employees</div>
+      <a onclick="show('tenant-employees')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Employees</a>
+      <a onclick="show('tenant-transfer')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Transfer Center</a>
+      <a onclick="show('tenant-enroll')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Enroll New Member</a>
+      <div class="section-label text-gray-500">Settings</div>
+      <a onclick="show('tenant-radixhr')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">RadixHR Connection</a>
+      <a onclick="show('tenant-security')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Security &amp; Access</a>
+      <a onclick="show('tenant-audit')" class="nav-link block px-5 py-2.5 text-sm hover:bg-gray-800 cursor-pointer">Audit Log</a>
+    </nav>
+
+    <div class="px-5 py-4 border-t border-gray-800 text-xs">
+      <div class="text-gray-400">Signed in as</div>
+      <div class="text-white font-medium" id="current-user">admin@radixhr.app</div>
+      <div class="mt-2 flex items-center gap-1 text-emerald-400"><span>●</span> 2FA active</div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 p-8 overflow-x-hidden">
+
+    <!-- ====================== LOGIN ====================== -->
+    <section id="screen-login" class="screen">
+      <div class="max-w-md mx-auto mt-24 card p-8">
+        <div class="text-center">
+          <div class="font-bold text-xl">ZK Connect</div>
+          <div class="text-sm text-gray-500 mt-1">RadixHR Device Manager</div>
+        </div>
+        <div class="mt-8 space-y-4">
+          <div><label class="text-sm text-gray-600">Email</label><input class="input mt-1" value="admin@radixhr.app"/></div>
+          <div><label class="text-sm text-gray-600">Password</label><input type="password" class="input mt-1" value="••••••••"/></div>
+          <div><label class="text-sm text-gray-600">2FA code (TOTP)</label><input class="input mt-1" placeholder="6-digit code"/></div>
+          <button class="btn btn-primary w-full justify-center">Sign in</button>
+        </div>
+        <div class="mt-6 text-xs text-gray-500 text-center">All admin sessions require 2FA. Session expires after 30 min idle.</div>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: DASHBOARD ====================== -->
+    <section id="screen-super-dashboard" class="screen active">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold">Platform Overview</h1>
+          <p class="text-sm text-gray-500">Cross-tenant view — all clients, all devices, system health.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary">Last 24h ▾</button>
+          <button class="btn btn-primary">+ Add Tenant</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-4 gap-4">
+        <div class="stat-card"><div class="label">Active Tenants</div><div class="value">14</div><div class="delta text-emerald-600">+2 this month</div></div>
+        <div class="stat-card"><div class="label">Devices Online</div><div class="value">47 / 52</div><div class="delta text-red-600">5 offline &gt; 5m</div></div>
+        <div class="stat-card"><div class="label">Punches Today</div><div class="value">3,128</div><div class="delta">↑ 6% vs yesterday</div></div>
+        <div class="stat-card"><div class="label">Sync to RadixHR</div><div class="value">99.4%</div><div class="delta text-red-600">12 in DLQ</div></div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 mt-6">
+        <div class="card col-span-2 p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold">Tenants — punches in last 24h</div>
+            <button class="text-xs text-blue-600">View all</button>
+          </div>
+          <table>
+            <thead><tr><th>Tenant</th><th>Plan</th><th>Devices</th><th>Punches 24h</th><th>Sync</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="font-medium">2DOT4 Diamonds LLC</td><td>Pro</td><td>2 / 2</td><td>421</td><td>OK</td><td><span class="badge badge-green">Healthy</span></td></tr>
+              <tr><td class="font-medium">Acme Retail FZ</td><td>Pro</td><td>8 / 8</td><td>1,103</td><td>OK</td><td><span class="badge badge-green">Healthy</span></td></tr>
+              <tr><td class="font-medium">Sunrise Hospitality</td><td>Enterprise</td><td>11 / 12</td><td>892</td><td>OK</td><td><span class="badge badge-amber">1 device offline</span></td></tr>
+              <tr><td class="font-medium">Northstar Logistics</td><td>Pro</td><td>4 / 4</td><td>312</td><td>3 retrying</td><td><span class="badge badge-amber">Sync lag</span></td></tr>
+              <tr><td class="font-medium">Crescent Manufacturing</td><td>Enterprise</td><td>22 / 26</td><td>400</td><td>9 in DLQ</td><td><span class="badge badge-red">Webhook 401</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card p-4">
+          <div class="font-semibold mb-3">Recent platform events</div>
+          <ul class="text-sm space-y-2">
+            <li><span class="badge badge-blue">device</span> CL5Z…0301 online (2DOT4) — 12s ago</li>
+            <li><span class="badge badge-amber">sync</span> Crescent → RadixHR returned 401 — 4m ago</li>
+            <li><span class="badge badge-gray">admin</span> hr@acme rotated API key — 28m ago</li>
+            <li><span class="badge badge-blue">device</span> 8 new commands queued (Sunrise) — 1h ago</li>
+            <li><span class="badge badge-green">sync</span> DLQ drained for Acme — 3h ago</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: TENANTS ====================== -->
+    <section id="screen-super-tenants" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold">Tenants</h1>
+          <p class="text-sm text-gray-500">Each tenant gets its own PostgreSQL schema (or dedicated DB for Enterprise).</p>
+        </div>
+        <button class="btn btn-primary">+ Add Tenant</button>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Name</th><th>Workspace ID (RadixHR)</th><th>Isolation</th><th>Devices</th><th>Members</th><th>Created</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="font-medium">2DOT4 Diamonds LLC</td>
+              <td class="font-mono text-xs text-gray-600">96a0c8ca-3574-…</td>
+              <td><span class="badge badge-gray">Schema</span></td>
+              <td>2</td><td>12</td><td>2026-02-15</td>
+              <td><span class="badge badge-green">Active</span></td>
+              <td class="text-right"><a class="text-blue-600 text-sm cursor-pointer" onclick="setScope('tenant'); show('tenant-dashboard')">Open →</a></td>
+            </tr>
+            <tr>
+              <td class="font-medium">Acme Retail FZ</td>
+              <td class="font-mono text-xs text-gray-600">5e1abc92-bb20-…</td>
+              <td><span class="badge badge-gray">Schema</span></td>
+              <td>8</td><td>142</td><td>2026-03-02</td>
+              <td><span class="badge badge-green">Active</span></td>
+              <td class="text-right"><a class="text-blue-600 text-sm">Open →</a></td>
+            </tr>
+            <tr>
+              <td class="font-medium">Sunrise Hospitality</td>
+              <td class="font-mono text-xs text-gray-600">a1d4ee01-ff09-…</td>
+              <td><span class="badge badge-blue">Dedicated DB</span></td>
+              <td>12</td><td>318</td><td>2026-03-22</td>
+              <td><span class="badge badge-green">Active</span></td>
+              <td class="text-right"><a class="text-blue-600 text-sm">Open →</a></td>
+            </tr>
+            <tr>
+              <td class="font-medium">Crescent Manufacturing</td>
+              <td class="font-mono text-xs text-gray-600">df02aa3c-7c4e-…</td>
+              <td><span class="badge badge-blue">Dedicated DB</span></td>
+              <td>26</td><td>847</td><td>2026-04-10</td>
+              <td><span class="badge badge-red">Sync error</span></td>
+              <td class="text-right"><a class="text-blue-600 text-sm">Open →</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card mt-6 p-4">
+        <div class="font-semibold mb-3">Tenant provisioning options</div>
+        <div class="grid grid-cols-3 gap-4 text-sm">
+          <div class="border rounded p-3"><div class="font-medium">Schema-per-tenant</div><div class="text-xs text-gray-500 mt-1">Default. Strong isolation, low ops cost. Backup via `pg_dump --schema`.</div></div>
+          <div class="border rounded p-3"><div class="font-medium">Dedicated DB</div><div class="text-xs text-gray-500 mt-1">Enterprise tier. Separate cluster optional. Compliance-ready.</div></div>
+          <div class="border rounded p-3"><div class="font-medium">Shared (row-level)</div><div class="text-xs text-gray-500 mt-1">Free tier only. Postgres RLS + tenant_id. Discouraged for biometric data.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: ALL DEVICES ====================== -->
+    <section id="screen-super-devices" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">All Devices</h1><p class="text-sm text-gray-500">Every connected device across every tenant.</p></div>
+        <div class="flex gap-2">
+          <input class="input w-64" placeholder="Search SN, tenant, model…"/>
+          <button class="btn btn-secondary">Filter ▾</button>
+        </div>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Tenant</th><th>SN</th><th>Model</th><th>Firmware</th><th>Last Seen</th><th>Punches Today</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>2DOT4 Diamonds</td><td class="font-mono text-xs">CL5Z202760301</td><td>SpeedFace-V5L</td><td>ZAM170-NF-1.3.11</td><td>3s ago</td><td>9</td><td><span class="badge badge-green">Online</span></td></tr>
+            <tr><td>2DOT4 Diamonds</td><td class="font-mono text-xs">BOCK200961014</td><td>ZK F22</td><td>2.4.0</td><td>5s ago</td><td>16</td><td><span class="badge badge-green">Online</span></td></tr>
+            <tr><td>Acme Retail FZ</td><td class="font-mono text-xs">AC9X40821120</td><td>SpeedFace-V5L</td><td>ZAM170-NF-1.3.11</td><td>12s ago</td><td>87</td><td><span class="badge badge-green">Online</span></td></tr>
+            <tr><td>Sunrise Hospitality</td><td class="font-mono text-xs">SH1A20098221</td><td>iFace 990</td><td>6.20</td><td>11m ago</td><td>0</td><td><span class="badge badge-red">Offline</span></td></tr>
+            <tr><td>Crescent Manufacturing</td><td class="font-mono text-xs">CM7P11220100</td><td>SpeedFace-V5L</td><td>ZAM170-NF-1.3.11</td><td>4s ago</td><td>33</td><td><span class="badge badge-green">Online</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: SYNC TARGETS ====================== -->
+    <section id="screen-super-sync-targets" class="screen">
+      <h1 class="text-2xl font-bold mb-1">RadixHR Sync Targets</h1>
+      <p class="text-sm text-gray-500 mb-6">Each tenant pushes to its own RadixHR workspace. Retry &amp; DLQ visible here.</p>
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="stat-card"><div class="label">Successful 24h</div><div class="value">3,109</div></div>
+        <div class="stat-card"><div class="label">Retrying</div><div class="value text-amber-600">7</div></div>
+        <div class="stat-card"><div class="label">In DLQ</div><div class="value text-red-600">12</div></div>
+        <div class="stat-card"><div class="label">Avg latency</div><div class="value">412ms</div></div>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Tenant</th><th>Endpoint</th><th>Workspace</th><th>Auth</th><th>Last Success</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>2DOT4 Diamonds</td><td class="font-mono text-xs">api.radixhrservice.com/biometric</td><td>96a0c8ca…</td><td><span class="badge badge-gray">Bearer</span></td><td>4s ago</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td>Acme Retail FZ</td><td class="font-mono text-xs">api.radixhrservice.com/biometric</td><td>5e1abc92…</td><td><span class="badge badge-gray">Bearer</span></td><td>9s ago</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td>Crescent Manufacturing</td><td class="font-mono text-xs">api.radixhrservice.com/biometric</td><td>df02aa3c…</td><td><span class="badge badge-gray">Bearer</span></td><td>4h ago</td><td><span class="badge badge-red">401 invalid token</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: AUDIT ====================== -->
+    <section id="screen-super-audit" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Audit Log</h1>
+      <p class="text-sm text-gray-500 mb-6">Immutable, append-only. Every admin action, device command, and sync event.</p>
+      <div class="flex gap-2 mb-4">
+        <input class="input flex-1" placeholder="Search actor, action, target…"/>
+        <select class="select w-44"><option>All tenants</option><option>2DOT4 Diamonds</option></select>
+        <select class="select w-44"><option>All event types</option><option>auth</option><option>command</option><option>tenant</option><option>sync</option></select>
+        <button class="btn btn-secondary">Export CSV</button>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Time</th><th>Actor</th><th>Tenant</th><th>Action</th><th>Target</th><th>IP</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="text-xs">12:46:32</td><td>admin@radixhr.app</td><td>—</td><td>tenant.create</td><td>Northstar Logistics</td><td class="font-mono text-xs">82.114.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:43:02</td><td>hr@2dot4.ae</td><td>2DOT4 Diamonds</td><td>device.command</td><td>CL5Z202760301 (DATA QUERY USERINFO)</td><td class="font-mono text-xs">94.205.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:41:11</td><td>hr@acme.ae</td><td>Acme Retail FZ</td><td>employee.add</td><td>PIN=143 ali@acme</td><td class="font-mono text-xs">37.245.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:39:51</td><td>system</td><td>2DOT4 Diamonds</td><td>sync.dispatch</td><td>261 punches → RadixHR</td><td class="font-mono text-xs">—</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:11:09</td><td>ops@radixhr.app</td><td>Crescent Manufacturing</td><td>sync_target.rotate_token</td><td>RadixHR token</td><td class="font-mono text-xs">82.114.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">11:58:33</td><td>—</td><td>—</td><td>auth.failed</td><td>admin@radixhr.app</td><td class="font-mono text-xs">203.x.x.x</td><td><span class="badge badge-red">Bad 2FA</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: HEALTH ====================== -->
+    <section id="screen-super-health" class="screen">
+      <h1 class="text-2xl font-bold mb-6">System Health</h1>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card p-4"><div class="font-semibold">API server</div><div class="text-3xl mt-2">✓</div><div class="text-xs text-gray-500">99.98% uptime · p95 184ms</div></div>
+        <div class="card p-4"><div class="font-semibold">Postgres (primary)</div><div class="text-3xl mt-2">✓</div><div class="text-xs text-gray-500">12 connections · 3.2 GB · WAL OK</div></div>
+        <div class="card p-4"><div class="font-semibold">Redis (sessions+queue)</div><div class="text-3xl mt-2">✓</div><div class="text-xs text-gray-500">2,103 keys · 14 MB</div></div>
+        <div class="card p-4"><div class="font-semibold">ADMS endpoint</div><div class="text-3xl mt-2">✓</div><div class="text-xs text-gray-500">52 devices · 421 req/min</div></div>
+        <div class="card p-4"><div class="font-semibold">RadixHR webhook</div><div class="text-3xl mt-2 text-amber-600">!</div><div class="text-xs text-gray-500">1 target failing — Crescent</div></div>
+        <div class="card p-4"><div class="font-semibold">Backups</div><div class="text-3xl mt-2">✓</div><div class="text-xs text-gray-500">Last full: 2h ago · encrypted at rest</div></div>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: ADMIN USERS ====================== -->
+    <section id="screen-super-users" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">Admin Users &amp; Roles</h1><p class="text-sm text-gray-500">Platform-level (super-admin) accounts. Tenant-admins live inside each tenant.</p></div>
+        <button class="btn btn-primary">+ Invite Admin</button>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>2FA</th><th>Last Login</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>You</td><td>admin@radixhr.app</td><td><span class="badge badge-blue">Super Admin</span></td><td>✓</td><td>now</td><td><span class="badge badge-green">Active</span></td></tr>
+            <tr><td>Sara M.</td><td>sara.ops@radixhr.app</td><td><span class="badge badge-blue">Ops</span></td><td>✓</td><td>2h ago</td><td><span class="badge badge-green">Active</span></td></tr>
+            <tr><td>Karim L.</td><td>karim@radixhr.app</td><td><span class="badge badge-gray">Read-only</span></td><td>—</td><td>—</td><td><span class="badge badge-amber">Pending 2FA setup</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: SECURITY ====================== -->
+    <section id="screen-super-security" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Platform Security Settings</h1>
+      <p class="text-sm text-gray-500 mb-6">Defaults applied to all tenants. Tenants can tighten but not relax.</p>
+      <div class="space-y-4">
+        <div class="card p-5">
+          <div class="font-semibold">Authentication</div>
+          <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Require 2FA (TOTP) for all admin users</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Lock account after 5 failed attempts</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Force password rotation every 90 days</label>
+            <label class="flex items-center gap-2"><input type="checkbox"/> Allow SSO (OIDC) for tenant admins</label>
+          </div>
+        </div>
+        <div class="card p-5">
+          <div class="font-semibold">Device channel (ADMS)</div>
+          <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Require mTLS client certs from devices</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Per-device shared secret rotation (every 30 days)</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Reject unknown SNs (no auto-register)</label>
+            <label class="flex items-center gap-2"><input type="checkbox"/> IP allowlist per tenant</label>
+          </div>
+        </div>
+        <div class="card p-5">
+          <div class="font-semibold">Data at rest</div>
+          <div class="mt-3 text-sm space-y-2">
+            <div>Postgres encryption: <span class="badge badge-green">AES-256 (cluster level)</span></div>
+            <div>Biometric templates: <span class="badge badge-green">Column-level encrypted (per-tenant DEK)</span></div>
+            <div>Backups: <span class="badge badge-green">Encrypted, off-site, 30-day retention</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== SUPER: CERTS ====================== -->
+    <section id="screen-super-certs" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">Device Certificates (mTLS)</h1><p class="text-sm text-gray-500">Each device gets an individual client cert. Revoke a cert to instantly disconnect the device.</p></div>
+        <button class="btn btn-primary">+ Issue Cert</button>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Device SN</th><th>Tenant</th><th>Issued</th><th>Expires</th><th>Fingerprint</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="font-mono text-xs">CL5Z202760301</td><td>2DOT4 Diamonds</td><td>2026-06-18</td><td>2027-06-18</td><td class="font-mono text-xs">3a:8f:c2:…</td><td><span class="badge badge-green">Valid</span></td><td class="text-right"><button class="btn btn-secondary text-xs">Revoke</button></td></tr>
+            <tr><td class="font-mono text-xs">AC9X40821120</td><td>Acme Retail FZ</td><td>2026-03-02</td><td>2027-03-02</td><td class="font-mono text-xs">9e:11:a4:…</td><td><span class="badge badge-green">Valid</span></td><td class="text-right"><button class="btn btn-secondary text-xs">Revoke</button></td></tr>
+            <tr><td class="font-mono text-xs">OLD_DEMO_001</td><td>—</td><td>2026-01-10</td><td>2026-04-10</td><td class="font-mono text-xs">11:22:33:…</td><td><span class="badge badge-red">Revoked</span></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: DASHBOARD ====================== -->
+    <section id="screen-tenant-dashboard" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">2DOT4 Diamonds LLC</h1><p class="text-sm text-gray-500">Asia/Dubai · 12 employees · 2 devices</p></div>
+        <div class="flex gap-2"><button class="btn btn-secondary">Today ▾</button><button class="btn btn-primary">+ Enroll Member</button></div>
+      </div>
+      <div class="grid grid-cols-4 gap-4">
+        <div class="stat-card"><div class="label">Members</div><div class="value">12</div><div class="delta">1 admin · 11 staff</div></div>
+        <div class="stat-card"><div class="label">Devices online</div><div class="value">2 / 2</div><div class="delta text-emerald-600">All healthy</div></div>
+        <div class="stat-card"><div class="label">Punches today</div><div class="value">9</div><div class="delta">5 IN · 4 OUT</div></div>
+        <div class="stat-card"><div class="label">Sync to RadixHR</div><div class="value">100%</div><div class="delta">Last 4s ago</div></div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 mt-6">
+        <div class="card col-span-2 p-4">
+          <div class="font-semibold mb-3">Devices</div>
+          <table>
+            <thead><tr><th>SN</th><th>Name</th><th>Model</th><th>Online</th><th>Punches today</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">CL5Z202760301</td><td>Main Entrance</td><td>SpeedFace-V5L</td><td><span class="badge badge-green">Yes</span></td><td>9</td><td class="text-right"><a class="text-blue-600 text-sm cursor-pointer" onclick="show('tenant-device-detail')">Manage →</a></td></tr>
+              <tr><td class="font-mono text-xs">BOCK200961014</td><td>Private Entrance</td><td>ZK F22</td><td><span class="badge badge-green">Yes</span></td><td>0</td><td class="text-right"><a class="text-blue-600 text-sm">Manage →</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card p-4">
+          <div class="font-semibold mb-3">Live events</div>
+          <ul class="text-sm space-y-2">
+            <li><span class="badge badge-green">punch</span> hijas IN (Palm) — 12s ago</li>
+            <li><span class="badge badge-green">punch</span> thameem IN (Finger) — 1m ago</li>
+            <li><span class="badge badge-blue">command</span> Roster query → OK</li>
+            <li><span class="badge badge-green">sync</span> 5 punches → RadixHR</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: LIVE FEED ====================== -->
+    <section id="screen-tenant-live" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Live Feed</h1>
+      <p class="text-sm text-gray-500 mb-6">Real-time stream via Server-Sent Events. Auto-scrolling.</p>
+      <div class="card p-4 font-mono text-xs space-y-1.5 max-h-[600px] overflow-auto">
+        <div><span class="text-emerald-600">12:46:32</span> · <span class="badge badge-green">punch</span> · hijas (PIN 10) · Palm · IN · CL5Z…0301</div>
+        <div><span class="text-emerald-600">12:44:31</span> · <span class="badge badge-green">punch</span> · thameem (PIN 9) · Finger · IN · CL5Z…0301</div>
+        <div><span class="text-emerald-600">12:42:43</span> · <span class="badge badge-green">punch</span> · jasir (PIN 11) · Palm · IN · CL5Z…0301</div>
+        <div><span class="text-emerald-600">12:42:17</span> · <span class="badge badge-green">punch</span> · sabiq (PIN 5) · Face · IN · CL5Z…0301</div>
+        <div><span class="text-emerald-600">12:41:58</span> · <span class="badge badge-green">punch</span> · sidheek (PIN 1) · Finger · IN · CL5Z…0301</div>
+        <div><span class="text-blue-600">12:40:43</span> · <span class="badge badge-blue">command</span> · DATA QUERY USERINFO → OK (12 users)</div>
+        <div><span class="text-emerald-600">12:39:37</span> · <span class="badge badge-green">punch</span> · jasir (PIN 11) · Face · IN · CL5Z…0301</div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: ATTENDANCE ====================== -->
+    <section id="screen-tenant-attendance" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">Attendance</h1><p class="text-sm text-gray-500">All punches with name resolution from device roster.</p></div>
+        <div class="flex gap-2"><button class="btn btn-secondary">Export CSV</button><button class="btn btn-secondary">Export Excel</button></div>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <input class="input w-48" type="date" value="2026-06-19"/>
+        <input class="input w-48" type="date" value="2026-06-19"/>
+        <select class="select w-44"><option>All employees</option><option>sidheek</option></select>
+        <select class="select w-44"><option>All devices</option><option>Main Entrance</option><option>Private Entrance</option></select>
+        <input class="input flex-1" placeholder="Search name or PIN…"/>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Time</th><th>Name</th><th>PIN</th><th>Type</th><th>Method</th><th>Device</th><th>Synced</th></tr></thead>
+          <tbody>
+            <tr><td class="text-xs">12:45:52</td><td>hijas</td><td>10</td><td><span class="badge badge-green">IN</span></td><td>Palm</td><td>Main Entrance</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:44:31</td><td>thameem</td><td>9</td><td><span class="badge badge-green">IN</span></td><td>Finger</td><td>Main Entrance</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:42:43</td><td>jasir</td><td>11</td><td><span class="badge badge-green">IN</span></td><td>Palm</td><td>Main Entrance</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:42:17</td><td>sabiq</td><td>5</td><td><span class="badge badge-green">IN</span></td><td>Face</td><td>Main Entrance</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:41:58</td><td>sidheek</td><td>1</td><td><span class="badge badge-green">IN</span></td><td>Finger</td><td>Main Entrance</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:39:37</td><td>jasir</td><td>11</td><td><span class="badge badge-green">IN</span></td><td>Face</td><td>Main Entrance</td><td><span class="badge badge-amber">Retrying</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: DEVICES ====================== -->
+    <section id="screen-tenant-devices" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">Devices</h1><p class="text-sm text-gray-500">Add a new device by issuing an enrollment token — the device pairs on first ADMS handshake.</p></div>
+        <button class="btn btn-primary">+ Add Device</button>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>SN</th><th>Name</th><th>Location</th><th>Model</th><th>Firmware</th><th>Members</th><th>Punches today</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="font-mono text-xs">CL5Z202760301</td><td>Main Entrance</td><td>Office HQ</td><td>SpeedFace-V5L</td><td>1.3.11</td><td>12</td><td>9</td><td><span class="badge badge-green">Online · 3s</span></td><td class="text-right"><a class="text-blue-600 text-sm cursor-pointer" onclick="show('tenant-device-detail')">Manage →</a></td></tr>
+            <tr><td class="font-mono text-xs">BOCK200961014</td><td>Private Entrance</td><td>Office HQ</td><td>ZK F22</td><td>2.4.0</td><td>4</td><td>0</td><td><span class="badge badge-green">Online · 8s</span></td><td class="text-right"><a class="text-blue-600 text-sm">Manage →</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: DEVICE DETAIL ====================== -->
+    <section id="screen-tenant-device-detail" class="screen">
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <div class="text-xs text-gray-500"><a onclick="show('tenant-devices')" class="cursor-pointer hover:underline">Devices</a> / CL5Z202760301</div>
+          <h1 class="text-2xl font-bold">Main Entrance</h1>
+          <div class="text-sm text-gray-500 mt-1">SpeedFace-V5L · ZAM170-NF-Ver1.3.11 · Online · Asia/Dubai</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary">Edit</button>
+          <button class="btn btn-danger">Unpair</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="stat-card"><div class="label">Status</div><div class="value text-emerald-600">Online</div><div class="delta">Last seen 3s ago</div></div>
+        <div class="stat-card"><div class="label">Enrolled</div><div class="value">12 users</div><div class="delta">15 fingers · 12 faces · 12 palms</div></div>
+        <div class="stat-card"><div class="label">Punches today</div><div class="value">9</div></div>
+        <div class="stat-card"><div class="label">Total in DB</div><div class="value">264</div></div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card col-span-2 p-4">
+          <div class="font-semibold mb-3">Command Center</div>
+          <div class="grid grid-cols-3 gap-2 text-sm">
+            <button class="btn btn-secondary justify-center">Sync time</button>
+            <button class="btn btn-secondary justify-center">Get info</button>
+            <button class="btn btn-secondary justify-center">Query users</button>
+            <button class="btn btn-secondary justify-center">Open door (relay)</button>
+            <button class="btn btn-secondary justify-center">Reboot</button>
+            <button class="btn btn-secondary justify-center">Set volume</button>
+            <button class="btn btn-secondary justify-center">Set language</button>
+            <button class="btn btn-secondary justify-center">Clear log</button>
+            <button class="btn btn-danger justify-center">Clear all data</button>
+          </div>
+          <div class="mt-5">
+            <div class="text-xs text-gray-500 mb-2">RECENT COMMANDS</div>
+            <table>
+              <thead><tr><th>ID</th><th>Type</th><th>Queued</th><th>Status</th><th>Result</th></tr></thead>
+              <tbody>
+                <tr><td>#4</td><td>DATA QUERY USERINFO</td><td>12:39:50</td><td><span class="badge badge-green">Success</span></td><td>12 users returned</td></tr>
+                <tr><td>#3</td><td>DATA QUERY user (legacy)</td><td>12:38:04</td><td><span class="badge badge-red">Failed -1004</span></td><td>Unsupported syntax — auto-retry w/ legacy form</td></tr>
+                <tr><td>#2</td><td>SET OPTIONS DateTime</td><td>2026-06-18 09:01</td><td><span class="badge badge-green">Success</span></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="font-semibold mb-3">Device info</div>
+          <dl class="text-sm space-y-2">
+            <div class="flex justify-between"><dt class="text-gray-500">Serial</dt><dd class="font-mono text-xs">CL5Z202760301</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Firmware</dt><dd>ZAM170-NF-1.3.11</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">ADMS version</dt><dd>2.4.1</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">IP</dt><dd>192.168.68.117</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Cert expiry</dt><dd>2027-06-18</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Att log count</dt><dd>264</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Has thermal</dt><dd><span class="badge badge-green">Yes</span></dd></div>
+          </dl>
+          <div class="mt-4 pt-4 border-t">
+            <div class="text-xs text-gray-500">FIRMWARE-SPECIFIC DIALECT</div>
+            <div class="text-sm mt-1">SpeedFace (legacy) — uses <code class="font-mono text-xs bg-gray-100 px-1">DATA QUERY USERINFO</code> instead of new-style syntax</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: COMMAND CENTER ====================== -->
+    <section id="screen-tenant-commands" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Command Center</h1>
+      <p class="text-sm text-gray-500 mb-6">Queue commands to one or many devices at once.</p>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card col-span-2 p-4">
+          <div class="font-semibold mb-3">Issue command</div>
+          <div class="space-y-3 text-sm">
+            <div><label class="text-gray-600">Targets</label>
+              <select class="select mt-1"><option>All devices in tenant (2)</option><option>Main Entrance (CL5Z…)</option><option>Private Entrance (BOCK…)</option></select>
+            </div>
+            <div><label class="text-gray-600">Command</label>
+              <select class="select mt-1">
+                <option>Sync time (current server time)</option>
+                <option>Reboot</option>
+                <option>Get info</option>
+                <option>Query users (auto-dialect)</option>
+                <option>Add user (PIN, name, privilege)</option>
+                <option>Delete user (PIN)</option>
+                <option>Transfer user from device A to B</option>
+                <option>Push template (FP / Face / Palm)</option>
+                <option>Open door (relay)</option>
+                <option>Set option (DateTime, Volume, Language, …)</option>
+                <option>Clear log</option>
+                <option>Clear data (destructive)</option>
+              </select>
+            </div>
+            <div><label class="text-gray-600">Notes / reason (audit)</label>
+              <input class="input mt-1" placeholder="Required when issuing destructive commands"/>
+            </div>
+            <button class="btn btn-primary">Queue command</button>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="font-semibold mb-3">Recent queue</div>
+          <ul class="text-sm space-y-2.5">
+            <li class="flex justify-between"><span>#4 query_users → Main Entrance</span><span class="badge badge-green">OK</span></li>
+            <li class="flex justify-between"><span>#3 query_users (legacy) → Main Entrance</span><span class="badge badge-red">-1004</span></li>
+            <li class="flex justify-between"><span>#2 sync_time → all</span><span class="badge badge-green">OK</span></li>
+            <li class="flex justify-between"><span>#1 reboot → BOCK…</span><span class="badge badge-green">OK</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: EMPLOYEES ====================== -->
+    <section id="screen-tenant-employees" class="screen">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold">Employees</h1><p class="text-sm text-gray-500">Roster across all devices in this tenant. Edits push to the device on save.</p></div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary">Import CSV</button>
+          <button class="btn btn-primary" onclick="show('tenant-enroll')">+ New Member</button>
+        </div>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <input class="input flex-1" placeholder="Search name or PIN…"/>
+        <select class="select w-44"><option>All devices</option><option>Main Entrance</option><option>Private Entrance</option></select>
+        <select class="select w-44"><option>All roles</option><option>Admin</option><option>Staff</option></select>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>PIN</th><th>Name</th><th>Role</th><th>Enrolled biometrics</th><th>On devices</th><th>Last punch</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>sidheek</td><td><span class="badge badge-blue">Admin</span></td><td>FP · Face · Palm</td><td>Main · Private</td><td>12:41:58</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>2</td><td>jasim</td><td>Staff</td><td>FP · Face</td><td>Main</td><td>yesterday</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>3</td><td>iqbal</td><td>Staff</td><td>FP · Face</td><td>Main</td><td>—</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>4</td><td>hashim</td><td>Staff</td><td>FP · Face</td><td>Main</td><td>—</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>5</td><td>sabiq</td><td>Staff</td><td>FP · Face</td><td>Main</td><td>12:42:17</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>7</td><td>aslam</td><td>Staff</td><td>FP · Face · Palm</td><td>Main · Private</td><td>12:50:57</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>9</td><td>thameem</td><td>Staff</td><td>FP · Face</td><td>Main</td><td>12:44:31</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>10</td><td>hijas</td><td>Staff</td><td>Palm</td><td>Main</td><td>12:45:52</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+            <tr><td>11</td><td>jasir</td><td>Staff</td><td>FP · Face · Palm</td><td>Main</td><td>12:42:43</td><td class="text-right"><button class="btn btn-secondary text-xs">Edit</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: TRANSFER ====================== -->
+    <section id="screen-tenant-transfer" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Transfer Center</h1>
+      <p class="text-sm text-gray-500 mb-6">Copy or move members + their biometric templates between devices in this tenant.</p>
+      <div class="card p-5">
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <div class="text-xs text-gray-500 mb-2">FROM</div>
+            <select class="select"><option>Main Entrance (CL5Z…0301)</option></select>
+            <div class="mt-4 max-h-80 overflow-auto border rounded">
+              <table>
+                <thead><tr><th><input type="checkbox"/></th><th>PIN</th><th>Name</th><th>Biometrics</th></tr></thead>
+                <tbody>
+                  <tr><td><input type="checkbox" checked/></td><td>1</td><td>sidheek</td><td>FP · Face · Palm</td></tr>
+                  <tr><td><input type="checkbox" checked/></td><td>5</td><td>sabiq</td><td>FP · Face</td></tr>
+                  <tr><td><input type="checkbox"/></td><td>9</td><td>thameem</td><td>FP · Face</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-2">TO</div>
+            <select class="select"><option>Private Entrance (BOCK…1014)</option></select>
+            <div class="mt-4 p-4 border rounded bg-gray-50 text-sm">
+              <div class="font-medium mb-2">Transfer plan</div>
+              <ul class="text-xs space-y-1">
+                <li>• Copy 2 selected members</li>
+                <li>• Push fingerprint templates (4 records)</li>
+                <li>• Push face templates (2 records)</li>
+                <li>• Push palm templates (1 record)</li>
+                <li>• Estimated ≈ 5 commands queued</li>
+              </ul>
+              <div class="mt-3 flex items-center gap-2 text-xs">
+                <input type="checkbox"/> Also remove from source (move instead of copy)
+              </div>
+            </div>
+            <button class="btn btn-primary mt-4">Execute transfer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: ENROLL ====================== -->
+    <section id="screen-tenant-enroll" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Enroll New Member</h1>
+      <p class="text-sm text-gray-500 mb-6">Create the member record now; capture biometrics on the device when they first scan.</p>
+      <div class="card p-5 max-w-2xl">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div><label class="text-gray-600">PIN (auto)</label><input class="input mt-1" value="13"/></div>
+          <div><label class="text-gray-600">Role</label>
+            <select class="select mt-1"><option>Staff</option><option>Admin (Pri=14)</option><option>Manager</option></select>
+          </div>
+          <div class="col-span-2"><label class="text-gray-600">Name (as it appears on device)</label><input class="input mt-1" placeholder="e.g. Mohammed Ali"/></div>
+          <div><label class="text-gray-600">Card (optional)</label><input class="input mt-1" placeholder="Card UID"/></div>
+          <div><label class="text-gray-600">Password (optional)</label><input class="input mt-1"/></div>
+          <div class="col-span-2"><label class="text-gray-600">Push to device(s)</label>
+            <select class="select mt-1" multiple><option selected>Main Entrance</option><option>Private Entrance</option></select>
+            <div class="text-xs text-gray-500 mt-1">Member is created on selected device(s) via <code class="font-mono">DATA UPDATE USERINFO</code>.</div>
+          </div>
+          <div class="col-span-2"><label class="text-gray-600">Biometric capture</label>
+            <div class="mt-1 p-3 border rounded bg-gray-50 text-xs text-gray-600">
+              Member will scan on the device once. The device pushes the template to us; we then mirror it to any other selected devices via <code class="font-mono">DATA UPDATE FINGERTMP</code> / <code class="font-mono">BIODATA</code>.
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 flex gap-2"><button class="btn btn-secondary">Cancel</button><button class="btn btn-primary">Create &amp; push</button></div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: RADIXHR CONNECTION ====================== -->
+    <section id="screen-tenant-radixhr" class="screen">
+      <h1 class="text-2xl font-bold mb-1">RadixHR Connection</h1>
+      <p class="text-sm text-gray-500 mb-6">Forward all parsed punches to your RadixHR workspace. Per-tenant credential.</p>
+      <div class="card p-5 max-w-3xl">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div class="col-span-2"><label class="text-gray-600">Endpoint</label><input class="input mt-1 font-mono text-xs" value="https://api.radixhrservice.com" readonly/></div>
+          <div><label class="text-gray-600">Workspace ID</label><input class="input mt-1 font-mono text-xs" value="96a0c8ca-3574-4716-a76d-7575805830a6"/></div>
+          <div><label class="text-gray-600">API token</label><input class="input mt-1 font-mono text-xs" value="rxh_••••••••••••••••"/></div>
+          <div><label class="text-gray-600">Source timezone</label><select class="select mt-1"><option>Asia/Dubai (UTC+4)</option></select></div>
+          <div><label class="text-gray-600">Log type mapping</label><input class="input mt-1" value="0=in, 1=out"/></div>
+          <div class="col-span-2"><label class="text-gray-600">Retry policy</label>
+            <div class="mt-1 grid grid-cols-3 gap-2 text-xs">
+              <div class="border rounded p-2"><div class="text-gray-500">Max attempts</div><div class="font-medium">5</div></div>
+              <div class="border rounded p-2"><div class="text-gray-500">Backoff</div><div class="font-medium">Exponential 2^n</div></div>
+              <div class="border rounded p-2"><div class="text-gray-500">DLQ after</div><div class="font-medium">5 failures</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 flex gap-2 items-center">
+          <button class="btn btn-secondary">Test connection</button>
+          <button class="btn btn-primary">Save</button>
+          <span class="text-xs text-emerald-600">● Last successful sync: 4s ago</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: SECURITY ====================== -->
+    <section id="screen-tenant-security" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Security &amp; Access</h1>
+      <p class="text-sm text-gray-500 mb-6">Tenant-level controls. Platform defaults are inherited.</p>
+      <div class="space-y-4">
+        <div class="card p-5">
+          <div class="font-semibold">Tenant admins</div>
+          <table class="mt-3">
+            <thead><tr><th>Email</th><th>Role</th><th>2FA</th><th>Last login</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>hr@2dot4.ae</td><td><span class="badge badge-blue">Tenant Admin</span></td><td>✓</td><td>now</td><td></td></tr>
+              <tr><td>ops@2dot4.ae</td><td><span class="badge badge-gray">Read-only</span></td><td>✓</td><td>3d ago</td><td></td></tr>
+            </tbody>
+          </table>
+          <button class="btn btn-secondary mt-3">+ Invite user</button>
+        </div>
+        <div class="card p-5">
+          <div class="font-semibold">API keys (for integrations)</div>
+          <div class="text-xs text-gray-500 mb-3">Scoped per-feature. Rotate anytime.</div>
+          <table>
+            <thead><tr><th>Name</th><th>Scope</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>RadixHR push</td><td>punches:write</td><td>2026-02-15</td><td>4s ago</td><td class="text-right"><button class="btn btn-secondary text-xs">Rotate</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card p-5">
+          <div class="font-semibold">Access controls</div>
+          <div class="mt-3 space-y-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Require 2FA for all tenant users</label>
+            <label class="flex items-center gap-2"><input type="checkbox"/> IP allowlist (admin login only)</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Auto-revoke session after 30 min idle</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked/> Log all member data access in audit log</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== TENANT: AUDIT ====================== -->
+    <section id="screen-tenant-audit" class="screen">
+      <h1 class="text-2xl font-bold mb-1">Audit Log</h1>
+      <p class="text-sm text-gray-500 mb-6">Scoped to this tenant. Read-only, append-only.</p>
+      <div class="card overflow-hidden">
+        <table>
+          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>IP</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="text-xs">12:43:02</td><td>hr@2dot4.ae</td><td>device.command</td><td>CL5Z…0301 (DATA QUERY USERINFO)</td><td class="font-mono text-xs">94.205.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">12:39:51</td><td>system</td><td>sync.dispatch</td><td>261 punches → RadixHR</td><td class="font-mono text-xs">—</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">10:18:42</td><td>hr@2dot4.ae</td><td>employee.add</td><td>PIN=13 Mohammed Ali</td><td class="font-mono text-xs">94.205.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+            <tr><td class="text-xs">2026-06-18 09:01</td><td>hr@2dot4.ae</td><td>session.start (2FA)</td><td>—</td><td class="font-mono text-xs">94.205.x.x</td><td><span class="badge badge-green">OK</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + id);
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+    const link = [...document.querySelectorAll('.nav-link')].find(a => (a.getAttribute('onclick')||'').includes("'"+id+"'"));
+    if (link) link.classList.add('active');
+    window.scrollTo({top: 0, behavior: 'instant'});
+  }
+  function setScope(s) {
+    const isSuper = s === 'super';
+    document.getElementById('nav-super').classList.toggle('hidden', !isSuper);
+    document.getElementById('nav-tenant').classList.toggle('hidden', isSuper);
+    document.getElementById('scope-super').className = isSuper ? 'px-3 py-1 rounded bg-amber-700 text-white' : 'px-3 py-1 rounded bg-white';
+    document.getElementById('scope-tenant').className = isSuper ? 'px-3 py-1 rounded bg-white' : 'px-3 py-1 rounded bg-amber-700 text-white';
+    document.getElementById('current-user').textContent = isSuper ? 'admin@radixhr.app' : 'hr@2dot4.ae';
+    show(isSuper ? 'super-dashboard' : 'tenant-dashboard');
+  }
+  // start on tenant dashboard since that's the most relatable view
+  setScope('tenant');
+</script>
+</body>
+</html>

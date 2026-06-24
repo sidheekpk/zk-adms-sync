@@ -1,0 +1,80 @@
+# ----------------------------------------------------------------------
+# ZK Connect — production stack (VPS deploy)
+#
+# Services
+#   web       — Next.js admin app (3000 internal)
+#   adms      — Hono ADMS device endpoint (8080 internal)
+#   caddy     — TLS terminator + reverse proxy (80/443 public)
+#
+# Postgres + Redis are NOT in this stack — they live on the existing
+# shared cluster at 145.223.23.30 (DATABASE_URL / REDIS_URL in .env).
+#
+# Run from repo root:
+#   docker compose -f infra/docker-compose.yml --env-file .env up -d
+# ----------------------------------------------------------------------
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    container_name: zkc-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_ADMS_HOST: ${NEXT_PUBLIC_ADMS_HOST}
+      NEXT_PUBLIC_ADMS_PORT: ${NEXT_PUBLIC_ADMS_PORT}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: ${BOOTSTRAP_SUPER_ADMIN_EMAIL}
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD}
+    expose:
+      - "3000"
+    networks: [zkc]
+
+  adms:
+    build:
+      context: ..
+      dockerfile: apps/adms/Dockerfile
+    container_name: zkc-adms
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      ADMS_PORT: 8080
+      ADMS_HOST: 0.0.0.0
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-30000}
+      RAW_DUMP_ENABLED: ${RAW_DUMP_ENABLED:-false}
+    expose:
+      - "8080"
+    volumes:
+      - adms-logs:/app/logs
+    networks: [zkc]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: zkc-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, adms]
+    networks: [zkc]
+
+networks:
+  zkc:
+    driver: bridge
+
+volumes:
+  adms-logs:
+  caddy-data:
+  caddy-config:

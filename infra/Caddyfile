@@ -1,0 +1,39 @@
+# ----------------------------------------------------------------------
+# ZK Connect — production reverse proxy
+#
+# Two hostnames:
+#   ${APP_DOMAIN}     → Next.js admin UI (zkc-web:3000)
+#   ${ADMS_DOMAIN}    → Hono ADMS endpoint (zkc-adms:8080)
+#
+# Caddy handles ACME (Let's Encrypt) automatically. Both domains must
+# resolve to the VPS for cert issuance to succeed.
+#
+# Env vars are pulled from the compose .env (ACME_EMAIL, APP_DOMAIN,
+# ADMS_DOMAIN). Caddy reads them via {$ENV_NAME} syntax.
+# ----------------------------------------------------------------------
+
+{
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+# ---- Admin UI -------------------------------------------------------
+{$APP_DOMAIN} {
+	encode gzip
+	reverse_proxy web:3000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+# ---- ADMS device endpoint -------------------------------------------
+# Devices POST/GET to /iclock/* here. We strip the Date response header
+# at the app level (see apps/adms/src/server.ts) but the reverse proxy
+# does NOT add one (Caddy only adds Date if upstream omits it AND the
+# response body would be empty — neither true here).
+{$ADMS_DOMAIN} {
+	encode gzip
+	reverse_proxy adms:8080
+	# devices send/receive plain-text; no compression negotiation issues
+}

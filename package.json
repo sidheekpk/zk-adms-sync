@@ -1,0 +1,24 @@
+{
+  "name": "zk-connect-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZK Connect — multi-tenant biometric device manager + RadixHR sync",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:logs": "docker compose -f docker-compose.dev.yml logs -f postgres",
+    "db:psql": "docker compose -f docker-compose.dev.yml exec postgres psql -U zkc -d zkc"
+  },
+  "packageManager": "pnpm@10.12.2",
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

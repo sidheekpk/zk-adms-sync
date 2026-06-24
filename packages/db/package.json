@@ -1,0 +1,33 @@
+{
+  "name": "@zkc/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./platform": "./src/schema/platform.ts",
+    "./tenant": "./src/schema/tenant.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "db:generate:platform": "drizzle-kit generate --config=drizzle.config.ts --name=platform_init",
+    "db:generate:tenant": "drizzle-kit generate --config=drizzle.config.tenant.ts --name=tenant_init",
+    "db:generate": "pnpm db:generate:platform && pnpm db:generate:tenant && pnpm bundle:tenant-sql",
+    "bundle:tenant-sql": "tsx scripts/bundle-tenant-sql.ts",
+    "db:migrate:platform": "tsx src/migrate-platform.ts",
+    "db:studio": "drizzle-kit studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}

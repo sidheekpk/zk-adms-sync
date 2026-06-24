@@ -1,0 +1,26 @@
+{
+  "name": "@zkc/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./commands": "./src/commands.ts",
+    "./firmware": "./src/firmware.ts",
+    "./timezone": "./src/timezone.ts",
+    "./parser": "./src/parser.ts",
+    "./capabilities": "./src/capabilities.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
