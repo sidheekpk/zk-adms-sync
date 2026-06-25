@@ -27,6 +27,8 @@ import { ManualTimeCard } from '@/components/manual-time-card';
 import { CapabilitiesCard } from '@/components/capabilities-card';
 import { DeviceInfoCard } from '@/components/device-info-card';
 import { LocationPicker } from '@/components/location-picker';
+import { GroupPicker } from '@/components/group-picker';
+import { OfflineTroubleshootingCard } from '@/components/offline-troubleshooting-card';
 import { cn } from '@/lib/utils';
 import type { DeviceCapabilities } from '@zkc/shared/capabilities';
 
@@ -193,24 +195,19 @@ export default function DeviceSettingsPage({
           <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
             <div>
               {d.status !== 'online' && (
-                <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
-                  <div className="flex items-start gap-3">
-                    <WifiOff className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
-                    <div className="flex-1">
-                      <p className="font-medium">Device is {d.status} — actions are disabled.</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        The device will flip back to online automatically the moment its next heartbeat reaches us.
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => refreshConn.mutate({ tenantSlug: slug, deviceId: id })}
-                      disabled={refreshConn.isPending}
-                    >
-                      <RefreshCw className={cn('mr-2 h-4 w-4', refreshConn.isPending && 'animate-spin')} />
-                      Re-check now
-                    </Button>
-                  </div>
+                <div className="mb-4">
+                  <OfflineTroubleshootingCard
+                    tenantSlug={slug}
+                    deviceId={id}
+                    deviceName={d.name || d.serial_number}
+                    lastOnline={(d as unknown as { last_online: string | null }).last_online ?? null}
+                    firmwareFamily={d.firmware_family}
+                    lastKnownIp={
+                      d.settings?.deviceInfo?.IPAddress ??
+                      (d as unknown as { ip_address: string | null }).ip_address ??
+                      null
+                    }
+                  />
                 </div>
               )}
 
@@ -441,11 +438,16 @@ export default function DeviceSettingsPage({
                   <Row label="Firmware family" value={d.firmware_family} />
                   <Row label="Status" value={<StatusPill status={d.status} />} />
                   <Row label="Active" value={d.enabled ? 'Yes' : <span className="text-amber-600">Paused</span>} />
-                  <div className="pt-2">
+                  <div className="space-y-3 pt-2">
                     <LocationPicker
                       tenantSlug={slug}
                       deviceId={id}
                       currentLocationId={(d as unknown as { location_id: string | null }).location_id ?? null}
+                    />
+                    <GroupPicker
+                      tenantSlug={slug}
+                      deviceId={id}
+                      currentGroupId={(d as unknown as { group_id: string | null }).group_id ?? null}
                     />
                   </div>
                 </CardContent>

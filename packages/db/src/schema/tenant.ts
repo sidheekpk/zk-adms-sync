@@ -83,6 +83,17 @@ export const locations = pgTable('locations', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---- Device groups -------------------------------------------------------
+// Logical grouping for bulk operations. One device belongs to at most one
+// group. Reboot / clear / push-settings can target a whole group at once.
+export const deviceGroups = pgTable('device_groups', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---- Devices ---------------------------------------------------------------
 export const devices = pgTable(
   'devices',
@@ -91,6 +102,7 @@ export const devices = pgTable(
     serialNumber: varchar('serial_number', { length: 64 }).notNull(),
     name: text('name').notNull().default(''),
     locationId: uuid('location_id').references(() => locations.id, { onDelete: 'set null' }),
+    groupId: uuid('group_id').references(() => deviceGroups.id, { onDelete: 'set null' }),
     model: text('model'),
     firmwareVersion: text('firmware_version'),
     firmwareFamily: firmwareFamilyEnum('firmware_family').notNull().default('unknown'),

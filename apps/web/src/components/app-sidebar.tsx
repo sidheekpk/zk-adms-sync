@@ -22,6 +22,7 @@ import {
   Plug,
   BarChart3,
   MapPin,
+  Layers,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
@@ -81,6 +82,7 @@ export function AppSidebar({ scope, tenantSlug, user }: AppSidebarProps) {
     ? [
         { label: 'Dashboard', href: `/t/${tenantSlug}/dashboard`, icon: LayoutDashboard },
         { label: 'Devices', href: `/t/${tenantSlug}/devices`, icon: Cpu },
+        { label: 'Groups', href: `/t/${tenantSlug}/groups`, icon: Layers },
         { label: 'Locations', href: `/t/${tenantSlug}/locations`, icon: MapPin },
         { label: 'Members', href: `/t/${tenantSlug}/members`, icon: Users },
         { label: 'Attendance', href: `/t/${tenantSlug}/attendance`, icon: Clock },

@@ -26,6 +26,7 @@ import { OperatorPasswordModal } from '@/components/operator-password-modal';
 import { TimezoneCard } from '@/components/timezone-card';
 import { CapabilitiesCard } from '@/components/capabilities-card';
 import { NetworkCard, type NetworkSnapshot } from '@/components/network-card';
+import { OfflineTroubleshootingCard } from '@/components/offline-troubleshooting-card';
 import { cn } from '@/lib/utils';
 import type { DeviceCapabilities } from '@zkc/shared/capabilities';
 
@@ -68,6 +69,7 @@ type DeviceRow = {
     network?: NetworkSnapshot;
     clockDrift?: { sec: number; measuredAt: string; method?: string };
     deviceOptions?: Record<string, number | boolean | string>;
+    deviceInfo?: Record<string, string>;
   } | null;
 };
 
@@ -267,6 +269,16 @@ function DeviceShell({
 }) {
   return (
     <>
+      {device.status !== 'online' && (
+        <OfflineTroubleshootingCard
+          tenantSlug={tenantSlug}
+          deviceId={device.id}
+          deviceName={device.name || device.serial_number}
+          lastOnline={(device as unknown as { last_online: string | null }).last_online ?? null}
+          firmwareFamily={device.firmware_family}
+          lastKnownIp={device.settings?.deviceInfo?.IPAddress ?? device.ip_address ?? null}
+        />
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <DeviceClock
           className="lg:col-span-2"

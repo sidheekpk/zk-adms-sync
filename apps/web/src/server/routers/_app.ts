@@ -7,6 +7,7 @@ import { auditRouter } from './audit';
 import { syncTargetsRouter } from './sync-targets';
 import { inboundKeysRouter } from './inbound-keys';
 import { locationsRouter } from './locations';
+import { deviceGroupsRouter } from './device-groups';
 
 export const appRouter = router({
   tenants: tenantsRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   syncTargets: syncTargetsRouter,
   inboundKeys: inboundKeysRouter,
   locations: locationsRouter,
+  deviceGroups: deviceGroupsRouter,
 });
 
 export type AppRouter = typeof appRouter;
