@@ -5,6 +5,8 @@ import { employeesRouter } from './employees';
 import { attendanceRouter } from './attendance';
 import { auditRouter } from './audit';
 import { syncTargetsRouter } from './sync-targets';
+import { inboundKeysRouter } from './inbound-keys';
+import { locationsRouter } from './locations';
 
 export const appRouter = router({
   tenants: tenantsRouter,
@@ -13,6 +15,8 @@ export const appRouter = router({
   attendance: attendanceRouter,
   audit: auditRouter,
   syncTargets: syncTargetsRouter,
+  inboundKeys: inboundKeysRouter,
+  locations: locationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

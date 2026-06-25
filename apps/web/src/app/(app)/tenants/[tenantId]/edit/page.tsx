@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { InboundKeysCard } from '@/components/inbound-keys-card';
 import {
   Dialog,
   DialogContent,
@@ -208,6 +209,9 @@ export default function EditTenantPage({
           </CardContent>
         </Card>
 
+        <IntegrationCard tenantId={tenantId} />
+        <InboundKeysCard tenantSlug={tenant.slug} />
+
         <div className="flex items-center justify-between gap-2">
           <Button
             onClick={() => update.mutate({ tenantId, ...form })}
@@ -289,5 +293,159 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-medium">{value}</p>
     </div>
+  );
+}
+
+// ---- Integration config card (Phase P.1) ---------------------------------
+type IntegrationKind = 'none' | 'radix' | 'fitness' | 'generic';
+
+const KIND_LABELS: Record<IntegrationKind, string> = {
+  none: 'No integration',
+  radix: 'Radix HR / Workly',
+  fitness: 'Fitness app (gym/membership)',
+  generic: 'Generic webhook',
+};
+
+const KIND_HINTS: Record<IntegrationKind, string> = {
+  none: 'Tenant punches stay in ZK Connect only — nothing is pushed out.',
+  radix:
+    'Tuned payload shape for Radix HR / Workly. Sets workspaceId on every batch + device-status events.',
+  fitness:
+    'Member check-in shape (gym/membership). Each punch is a check-in keyed by externalId or PIN.',
+  generic:
+    'Flat JSON shape for any HTTPS receiver. Sends our raw record fields with no remapping.',
+};
+
+function IntegrationCard({ tenantId }: { tenantId: string }) {
+  const utils = trpc.useUtils();
+  const config = trpc.tenants.getIntegration.useQuery({ tenantId });
+  const save = trpc.tenants.setIntegration.useMutation({
+    onSuccess: () => {
+      toast.success('Integration saved');
+      void utils.tenants.getIntegration.invalidate();
+      setToken(''); // never re-show the entered token after save
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [kind, setKind] = useState<IntegrationKind>('none');
+  const [endpoint, setEndpoint] = useState('');
+  const [token, setToken] = useState('');
+  const [workspaceId, setWorkspaceId] = useState('');
+  const [initialized, setInitialized] = useState(false);
+
+  // Hydrate form from server data once
+  if (config.data && !initialized) {
+    setKind(config.data.integrationKind as IntegrationKind);
+    setEndpoint(config.data.integrationEndpoint ?? '');
+    setWorkspaceId(config.data.integrationWorkspaceId ?? '');
+    setInitialized(true);
+  }
+
+  const tokenAlreadySet = config.data?.tokenIsSet;
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    save.mutate({
+      tenantId,
+      kind,
+      endpoint: kind === 'none' ? null : endpoint.trim() || null,
+      // Only send a token if the operator typed one. null = keep existing.
+      token: kind === 'none' ? null : token || null,
+      workspaceId: kind === 'none' ? null : workspaceId.trim() || null,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Integration</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          One outbound integration per tenant — set by super-admin. Sync runs every 30s when
+          configured. Attendance + device-status events flow to the chosen kind&apos;s endpoint.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {!config.data ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <form className="space-y-4" onSubmit={submit}>
+            <div className="space-y-1">
+              <Label htmlFor="ikind">Kind</Label>
+              <select
+                id="ikind"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as IntegrationKind)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {(Object.keys(KIND_LABELS) as IntegrationKind[]).map((k) => (
+                  <option key={k} value={k}>{KIND_LABELS[k]}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">{KIND_HINTS[kind]}</p>
+            </div>
+
+            {kind !== 'none' && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="iendpoint">Endpoint URL</Label>
+                  <Input
+                    id="iendpoint"
+                    type="url"
+                    value={endpoint}
+                    onChange={(e) => setEndpoint(e.target.value)}
+                    required
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="itoken">
+                    API token {tokenAlreadySet && <span className="text-xs text-muted-foreground">(leave blank to keep existing)</span>}
+                  </Label>
+                  <Input
+                    id="itoken"
+                    type="password"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder={tokenAlreadySet ? '•••••• (encrypted on save)' : ''}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Stored AES-256-GCM encrypted at rest.</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="iworkspace">Workspace / external ID (optional)</Label>
+                  <Input
+                    id="iworkspace"
+                    value={workspaceId}
+                    onChange={(e) => setWorkspaceId(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 p-3 text-xs">
+              <div>
+                <p className="font-medium">Status</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {config.data.integrationKind === 'none' ? (
+                    'Disabled — no outbound sync.'
+                  ) : config.data.integrationLastError ? (
+                    <>Last error: <span className="text-red-600">{config.data.integrationLastError}</span></>
+                  ) : config.data.integrationLastSuccessAt ? (
+                    <>Last successful delivery: {new Date(config.data.integrationLastSuccessAt).toLocaleString()}</>
+                  ) : (
+                    'Configured but no batches sent yet.'
+                  )}
+                </p>
+              </div>
+              <Button type="submit" disabled={save.isPending}>
+                {save.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save integration
+              </Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -103,11 +103,54 @@ export async function processCommandResult(opts: {
       AND command_id = ${opts.commandId}
   `;
 
-  // Side-effect: when the device returns network info from a GET OPTIONS
-  // query, snapshot it on the device row so the UI can display network
-  // status without re-querying.
+  // Side-effect: when the device returns any GET OPTIONS payload (a
+  // single line of comma-separated key=value pairs), snapshot every
+  // key into `devices.settings.deviceInfo` so the UI can show what the
+  // device actually reports without re-querying.
+  if (opts.responseData && opts.cmd.includes('GET OPTIONS')) {
+    await snapshotDeviceInfo(sql, opts.deviceId, opts.responseData);
+  }
+  // Specialised network snapshot kept for backward compat — UI reads it.
   if (opts.responseData && /^(IPAddress|NetMask|GATEIPAddress|DNS|DHCP)=/m.test(opts.responseData)) {
     await snapshotNetwork(sql, opts.deviceId, opts.responseData);
+  }
+}
+
+function parseKeyValueCsv(payload: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of payload.split(',')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (!key || !value) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+async function snapshotDeviceInfo(
+  sql: ReturnType<typeof getTenantSql>,
+  deviceId: string,
+  payload: string,
+) {
+  const fields = parseKeyValueCsv(payload);
+  if (Object.keys(fields).length === 0) return;
+  const snap = { ...fields, _capturedAt: new Date().toISOString() };
+  try {
+    await sql`
+      UPDATE devices SET
+        settings = COALESCE(settings, '{}'::jsonb) ||
+          jsonb_build_object(
+            'deviceInfo',
+            COALESCE(settings->'deviceInfo', '{}'::jsonb)
+              || ${sql.json(snap as unknown as Parameters<typeof sql.json>[0])}::jsonb
+          ),
+        updated_at = now()
+      WHERE id = ${deviceId}
+    `;
+  } catch (err) {
+    logger.error({ err, deviceId, fieldCount: Object.keys(fields).length }, 'snapshotDeviceInfo failed');
   }
 }
 

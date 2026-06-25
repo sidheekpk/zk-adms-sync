@@ -196,14 +196,46 @@ export const employeesRouter = router({
         WHERE id = ${input.employeeId}
       `;
 
+      // Auto-push the new profile to every device this member is enrolled
+      // on. Uses DATA UPDATE USERINFO (idempotent — device upserts by PIN).
+      const empPin = await sql<{ pin: string; password: string | null }[]>`
+        SELECT pin, password FROM employees WHERE id = ${input.employeeId} LIMIT 1
+      `;
+      const targetDevs = await sql<{ device_id: string; firmware_family: FirmwareFamily }[]>`
+        SELECT ed.device_id, d.firmware_family
+        FROM employee_devices ed
+        JOIN devices d ON d.id = ed.device_id
+        WHERE ed.employee_id = ${input.employeeId}
+      `;
+      let queued = 0;
+      for (const t of targetDevs) {
+        const payload = pickCommand(t.firmware_family, 'addUser')({
+          pin: empPin[0]!.pin,
+          name: newName,
+          privilege: newPriv,
+          password: empPin[0]?.password ?? undefined,
+          card: newCard ?? undefined,
+        });
+        await queueCommand({
+          schemaName: ctx.tenant.schemaName,
+          deviceId: t.device_id,
+          payload,
+          issuedByUserId: ctx.session.user.id,
+          issuedByEmail: ctx.session.user.email,
+          reason: `Profile update for ${newName} (PIN ${empPin[0]!.pin})`,
+        });
+        queued++;
+      }
+
       await logTenantAction(ctx, {
         tenantSchema: ctx.tenant.schemaName,
         action: 'employee.update',
         targetType: 'employee',
         targetId: input.employeeId,
         diff: { before: before[0], after: input },
+        metadata: { devicesPushed: queued },
       });
-      return { ok: true as const };
+      return { ok: true as const, devicesPushed: queued };
     }),
 
   /** After editing, re-push the USER record to every paired device. */
@@ -668,5 +700,106 @@ export const employeesRouter = router({
         diff: { before: { pin, name } },
       });
       return { ok: true as const };
+    }),
+
+  /**
+   * Transfer (or copy) a member from one device to another. Used when a
+   * member changes site, or when an operator wants the same biometric
+   * profile to exist on multiple entrances.
+   *
+   * `mode='move'` removes the member from `fromDeviceId` and pushes to
+   * `toDeviceId`. `mode='copy'` only pushes to `toDeviceId` (no removal).
+   */
+  transfer: tenantProcedure
+    .input(
+      z.object({
+        tenantSlug: z.string(),
+        employeeId: z.string().uuid(),
+        fromDeviceId: z.string().uuid(),
+        toDeviceId: z.string().uuid(),
+        mode: z.enum(['move', 'copy']).default('move'),
+        reason: z.string().min(1).max(280),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.fromDeviceId === input.toDeviceId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Source and destination devices are the same' });
+      }
+      const sql = getTenantSql(ctx.tenant.schemaName);
+      const emp = await sql<{ pin: string; name: string; device_privilege: number; card_number: string | null; password: string | null }[]>`
+        SELECT pin, name, device_privilege, card_number, password
+        FROM employees WHERE id = ${input.employeeId} LIMIT 1
+      `;
+      if (!emp[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      const devs = await sql<{ id: string; firmware_family: FirmwareFamily; name: string }[]>`
+        SELECT id, firmware_family, name FROM devices WHERE id IN (${input.fromDeviceId}::uuid, ${input.toDeviceId}::uuid)
+      `;
+      const from = devs.find((d) => d.id === input.fromDeviceId);
+      const to = devs.find((d) => d.id === input.toDeviceId);
+      if (!from || !to) throw new TRPCError({ code: 'NOT_FOUND', message: 'One or both devices not found' });
+
+      // Step 1: push to destination (idempotent upsert by PIN)
+      const pushPayload = pickCommand(to.firmware_family, 'addUser')({
+        pin: emp[0].pin,
+        name: emp[0].name,
+        privilege: emp[0].device_privilege,
+        password: emp[0].password ?? undefined,
+        card: emp[0].card_number ?? undefined,
+      });
+      const pushQ = await queueCommand({
+        schemaName: ctx.tenant.schemaName,
+        deviceId: to.id,
+        payload: pushPayload,
+        issuedByUserId: ctx.session.user.id,
+        issuedByEmail: ctx.session.user.email,
+        reason: `Transfer ${emp[0].name} (PIN ${emp[0].pin}) → ${to.name} — ${input.reason}`,
+      });
+      await sql`
+        INSERT INTO employee_devices (employee_id, device_id, pushed_at)
+        VALUES (${input.employeeId}, ${to.id}, now())
+        ON CONFLICT (employee_id, device_id) DO UPDATE SET pushed_at = now()
+      `;
+
+      // Step 2: if MOVE, also remove from source
+      let removeQ: number | null = null;
+      if (input.mode === 'move') {
+        const delPayload = buildDeleteUser(emp[0].pin);
+        const dq = await queueCommand({
+          schemaName: ctx.tenant.schemaName,
+          deviceId: from.id,
+          payload: delPayload,
+          issuedByUserId: ctx.session.user.id,
+          issuedByEmail: ctx.session.user.email,
+          reason: `Transfer ${emp[0].name} (PIN ${emp[0].pin}) away from ${from.name} — ${input.reason}`,
+        });
+        removeQ = dq.commandId;
+        await sql`
+          DELETE FROM employee_devices
+          WHERE employee_id = ${input.employeeId} AND device_id = ${from.id}
+        `;
+      }
+
+      await logTenantAction(ctx, {
+        tenantSchema: ctx.tenant.schemaName,
+        action: `employee.transfer.${input.mode}`,
+        targetType: 'employee',
+        targetId: input.employeeId,
+        reason: input.reason,
+        metadata: {
+          from: { id: from.id, name: from.name },
+          to: { id: to.id, name: to.name },
+          mode: input.mode,
+          pin: emp[0].pin,
+          pushCommandId: pushQ.commandId,
+          removeCommandId: removeQ,
+        },
+      });
+
+      return {
+        ok: true as const,
+        mode: input.mode,
+        pushQueued: pushQ.commandId,
+        removeQueued: removeQ,
+      };
     }),
 });

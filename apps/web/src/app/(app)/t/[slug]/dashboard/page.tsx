@@ -7,6 +7,8 @@ import { trpc } from '@/lib/trpc';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { LiveAttendanceFeed } from '@/components/live-attendance-feed';
+import { KpiCard } from '@/components/kpi-card';
 
 export default function TenantDashboard({
   params,
@@ -17,6 +19,10 @@ export default function TenantDashboard({
   const tenant = trpc.tenants.getBySlug.useQuery({ tenantSlug: slug });
   const devices = trpc.devices.list.useQuery({ tenantSlug: slug });
   const employees = trpc.employees.list.useQuery({ tenantSlug: slug });
+  const stats = trpc.attendance.stats.useQuery(
+    { tenantSlug: slug },
+    { refetchInterval: 10_000 },
+  );
 
   return (
     <>
@@ -32,11 +38,11 @@ export default function TenantDashboard({
           </Button>
         }
       />
-      <main className="flex-1 px-6 py-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+      <main className="flex-1 space-y-6 px-6 py-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             label="Devices"
-            value={devices.data?.length ?? '—'}
+            value={devices.data?.length ?? 0}
             sub={
               devices.data
                 ? `${devices.data.filter((d) => d.status === 'online').length} online`
@@ -44,21 +50,36 @@ export default function TenantDashboard({
             }
             icon={Cpu}
             href={`/t/${slug}/devices`}
+            accent="sky"
           />
           <KpiCard
             label="Members"
-            value={employees.data?.length ?? '—'}
+            value={employees.data?.length ?? 0}
             icon={Users}
             href={`/t/${slug}/members`}
+            accent="violet"
           />
           <KpiCard
             label="Punches today"
-            value="—"
-            sub="Live once ADMS service is wired to PG"
+            value={stats.data?.today ?? 0}
+            compareTo={stats.data?.yesterday}
+            sub={stats.data ? `${stats.data.unique_today} unique members` : ''}
             icon={Clock}
             href={`/t/${slug}/attendance`}
+            accent="emerald"
+          />
+          <KpiCard
+            label="This week"
+            value={stats.data?.week ?? 0}
+            sub={stats.data ? `${stats.data.total} all-time` : ''}
+            icon={Clock}
+            href={`/t/${slug}/reports`}
+            accent="amber"
           />
         </div>
+
+        {/* Live feed — animated, refreshes every 3s */}
+        <LiveAttendanceFeed tenantSlug={slug} />
 
         <Card className="mt-6">
           <CardHeader>
@@ -106,34 +127,4 @@ export default function TenantDashboard({
   );
 }
 
-function KpiCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ElementType;
-  href?: string;
-}) {
-  const body = (
-    <CardContent className="flex items-start justify-between p-5">
-      <div>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-      </div>
-      <Icon className="h-5 w-5 text-muted-foreground" />
-    </CardContent>
-  );
-  return href ? (
-    <Link href={href}>
-      <Card className="transition-colors hover:bg-muted/30">{body}</Card>
-    </Link>
-  ) : (
-    <Card>{body}</Card>
-  );
-}
+// (KpiCard moved to @/components/kpi-card — supports count-up + delta)

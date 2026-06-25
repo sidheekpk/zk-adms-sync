@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Trash2,
   Save,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
@@ -31,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { OperatorPasswordModal } from '@/components/operator-password-modal';
+import { TransferMemberModal } from '@/components/transfer-member-modal';
 import { cn } from '@/lib/utils';
 
 type BioKind = 'fp' | 'face' | 'palm' | 'photo';
@@ -113,6 +115,7 @@ export default function MemberPage({
   }>({});
   const [pushTargets, setPushTargets] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [transferFromDeviceId, setTransferFromDeviceId] = useState<string | null>(null);
 
   const employee = status.data?.employee;
   const templates = status.data?.templates ?? [];
@@ -383,6 +386,20 @@ export default function MemberPage({
                                   disabled={!isOnline || triggerEnroll.isPending}
                                 >
                                   <Hand className="mr-2 h-4 w-4" /> Enroll palm
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="ml-auto"
+                                  onClick={() => setTransferFromDeviceId(dev.id)}
+                                  disabled={(devices.data ?? []).length < 2}
+                                  title={
+                                    (devices.data ?? []).length < 2
+                                      ? 'Need at least 2 devices to transfer'
+                                      : 'Move or copy this member to another device'
+                                  }
+                                >
+                                  <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer
                                 </Button>
                               </div>
                             </div>
@@ -681,6 +698,24 @@ export default function MemberPage({
             // toast handled
           }
         }}
+      />
+
+      <TransferMemberModal
+        open={!!transferFromDeviceId}
+        onOpenChange={(o) => !o && setTransferFromDeviceId(null)}
+        tenantSlug={slug}
+        employeeId={id}
+        employeeName={employee.name}
+        employeePin={employee.pin}
+        fromDevice={
+          (devices.data ?? []).find((d) => d.id === transferFromDeviceId) ?? null
+        }
+        allDevices={(devices.data ?? []) as Array<{
+          id: string;
+          name: string;
+          serial_number: string;
+          status: string;
+        }>}
       />
     </>
   );

@@ -108,7 +108,7 @@ export default function EnrollMemberPage({
                     id="name"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Mohammed Ali"
+                    placeholder="e.g. Jane Doe"
                     required
                   />
                 </div>

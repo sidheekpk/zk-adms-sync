@@ -149,6 +149,9 @@ export const employees = pgTable(
     endDate: timestamp('end_date', { withTimezone: true }),
     biometricFlags: jsonb('biometric_flags').notNull().default(sql`'{}'::jsonb`),
     metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    /** External system identifier (e.g. Radix HR employee ID). Lets
+     * inbound sync upsert by external_id even if the PIN changes. */
+    externalId: text('external_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -25,7 +25,6 @@ import {
 } from '../device-commands';
 import {
   pushManualTime,
-  pushSettingsPatch,
   pushMaintenance,
   pushNtp,
   type MaintenanceKind,
@@ -89,12 +88,16 @@ export const devicesRouter = router({
           user_count: number | null;
           timezone: string;
           enabled: boolean;
+          location_id: string | null;
+          location_name: string | null;
         }>
       >`
-        SELECT id, serial_number, name, model, firmware_version, firmware_family,
-               status, last_online, att_log_count, user_count, timezone, enabled
-        FROM devices
-        ORDER BY name, serial_number
+        SELECT d.id, d.serial_number, d.name, d.model, d.firmware_version, d.firmware_family,
+               d.status, d.last_online, d.att_log_count, d.user_count, d.timezone, d.enabled,
+               d.location_id, l.name AS location_name
+        FROM devices d
+        LEFT JOIN locations l ON l.id = d.location_id
+        ORDER BY d.name, d.serial_number
       `;
     }),
 
@@ -184,66 +187,50 @@ export const devicesRouter = router({
       return { timezone: input.timezone };
     }),
 
-  // ---- Settings / configuration -----------------------------------------
-  updateDeviceOptions: tenantProcedure
-    .input(
-      z.object({
-        tenantSlug: z.string(),
-        deviceId: z.string().uuid(),
-        // Display & audio
-        volume: z.number().int().min(0).max(100).optional(),
-        languageId: z.number().int().optional(),
-        brightness: z.number().int().min(1).max(100).optional(),
-        idleDurationSec: z.number().int().min(0).max(3600).optional(),
-        lcdOnDurationSec: z.number().int().min(0).max(3600).optional(),
-        voicePromptOn: z.boolean().optional(),
-        // Date/time display formats
-        dateFormat: z.enum(['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY/MM/DD']).optional(),
-        timeFormat: z.union([z.literal(12), z.literal(24)]).optional(),
-        dstOn: z.boolean().optional(),
-        // Access control
-        lockOpenDurationSec: z.number().int().min(1).max(10).optional(),
-        antiPassbackMode: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
-        doorSensorDelaySec: z.number().int().min(0).max(60).optional(),
-        lockType: z.enum(['NO', 'NC']).optional(),
-        duressKey: z.number().int().min(0).max(9).optional(),
-        tamperAlarmOn: z.boolean().optional(),
-        // Verification
-        verifyMode: z.number().int().optional(),
-        fpThreshold: z.number().int().min(0).max(100).optional(),
-        fp1to1Threshold: z.number().int().min(0).max(100).optional(),
-        faceThreshold: z.number().int().min(0).max(100).optional(),
-        face1to1Threshold: z.number().int().min(0).max(100).optional(),
-        palmThreshold: z.number().int().min(0).max(100).optional(),
-        livenessOn: z.boolean().optional(),
-        photoOnVerify: z.boolean().optional(),
-        workCodeOn: z.boolean().optional(),
-        // ADMS push behaviour
-        heartbeatIntervalSec: z.number().int().min(5).max(600).optional(),
-        transFlag: z.string().regex(/^[01]{10}$/, '10-char binary string').optional(),
-        transTimes: z.string().regex(/^\d{2}:\d{2};\d{2}:\d{2}$/, 'Format HH:MM;HH:MM').optional(),
-        transIntervalMin: z.number().int().min(1).max(60).optional(),
-        realtimeOn: z.boolean().optional(),
-      }),
-    )
+  // ---- Device Info (READ-ONLY) ----------------------------------------
+  // Fires multi-field GET OPTIONS bundles across every category. The
+  // device's responses are parsed by command.service.snapshotDeviceInfo
+  // and stored in `devices.settings.deviceInfo` (JSONB). The UI reads
+  // that JSONB and renders. We deliberately have NO write mutations
+  // for device settings — V5L firmware accepts SET OPTIONS but never
+  // applies them; we're not lying to operators about that anymore.
+  queryDeviceInfo: tenantProcedure
+    .input(z.object({ tenantSlug: z.string(), deviceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const { tenantSlug: _slug, deviceId, ...patch } = input;
-      await assertDeviceOnline(ctx.tenant.schemaName, deviceId);
-      const result = await pushSettingsPatch({
-        schemaName: ctx.tenant.schemaName,
-        deviceId,
-        issuedByUserId: ctx.session.user.id,
-        issuedByEmail: ctx.session.user.email,
-        ...patch,
-      });
+      await assertDeviceOnline(ctx.tenant.schemaName, input.deviceId);
+      // Categories — each one is a single multi-field GET OPTIONS call.
+      // Single-field GETs return empty on V5L for some keys, but a
+      // multi-field call returns everything the device exposes.
+      const bundles: string[] = [
+        'IPAddress,NetMask,GATEIPAddress,DNS,DHCP,MACAddress',
+        'Timezone,TZAdj,NetworkTimeSync,DateTimeFormat,DSTSwitch',
+        'Volume,Brightness,Language,IdleDuration,LCDOnDuration,VoicePrompt',
+        'DateFormat,TimeFormat,DSTSwitch',
+        'LockOpenDuration,DoorSensorDelay,LockType,AntiPassbackOn,DuressKey,TamperAlarmOn',
+        'VerifyMode,LivenessDetect,FPThreshold,FP1to1Threshold,FaceThreshold,Face1to1Threshold,PalmThreshold,PhotoOnVerify,WorkCode',
+        'Delay,Realtime,TransFlag,TransTimes,TransInterval',
+        '~OS,FirmVer,~SerialNumber,~ZKFPVersion,~Platform,~DeviceName,DeviceID',
+      ];
+      const queuedCommandIds: number[] = [];
+      for (const fields of bundles) {
+        const q = await queueCommand({
+          schemaName: ctx.tenant.schemaName,
+          deviceId: input.deviceId,
+          payload: { type: 'GET_OPTIONS', payload: `GET OPTIONS ${fields}` },
+          issuedByUserId: ctx.session.user.id,
+          issuedByEmail: ctx.session.user.email,
+          reason: 'Device Info refresh',
+        });
+        queuedCommandIds.push(q.commandId);
+      }
       await logTenantAction(ctx, {
         tenantSchema: ctx.tenant.schemaName,
-        action: 'device.options.update',
+        action: 'device.info.query',
         targetType: 'device',
-        targetId: deviceId,
-        diff: { after: patch },
+        targetId: input.deviceId,
+        metadata: { bundleCount: bundles.length },
       });
-      return result;
+      return { queued: queuedCommandIds.length };
     }),
 
   notifications: tenantProcedure

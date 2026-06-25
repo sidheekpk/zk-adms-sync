@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 import { router, authedProcedure, superAdminProcedure, tenantProcedure } from '../trpc';
@@ -23,6 +23,9 @@ export const tenantsRouter = router({
         status: tenants.status,
         timezone: tenants.timezone,
         isolationMode: tenants.isolationMode,
+        brandColor: tenants.brandColor,
+        integrationKind: tenants.integrationKind,
+        radixhrWorkspaceId: tenants.radixhrWorkspaceId,
         createdAt: tenants.createdAt,
       })
       .from(tenants)
@@ -184,12 +187,30 @@ export const tenantsRouter = router({
         brandColor: z.string().optional(),
         operatorPassword: z.string().min(6, 'Operator password must be at least 6 characters'),
         adminEmail: z.string().email().optional(),
+        // Optional integration setup at creation time. Skip = 'none'.
+        integration: z
+          .object({
+            kind: z.enum(['radix', 'fitness', 'generic']),
+            endpoint: z.string().url(),
+            token: z.string().min(8),
+            workspaceId: z.string().optional(),
+          })
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const schemaName = tenantSchemaName(input.slug);
+      const { encrypt } = await import('@zkc/shared');
 
       // 1) Insert platform.tenants row
+      const integrationValues = input.integration
+        ? {
+            integrationKind: input.integration.kind,
+            integrationEndpoint: input.integration.endpoint,
+            integrationTokenEncrypted: encrypt(input.integration.token),
+            integrationWorkspaceId: input.integration.workspaceId ?? null,
+          }
+        : {};
       const [tenant] = await platformDb
         .insert(tenants)
         .values({
@@ -199,6 +220,7 @@ export const tenantsRouter = router({
           timezone: input.timezone,
           brandColor: input.brandColor,
           status: 'active',
+          ...integrationValues,
         })
         .returning();
       if (!tenant) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
@@ -300,6 +322,77 @@ export const tenantsRouter = router({
         targetType: 'operator_password',
       });
 
+      return { ok: true as const };
+    }),
+
+  // ---- Platform-level integration config (super-admin) -----------------
+  /** Returns the tenant's current integration config (token NOT decrypted). */
+  getIntegration: superAdminProcedure
+    .input(z.object({ tenantId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const [t] = await platformDb
+        .select({
+          integrationKind: tenants.integrationKind,
+          integrationEndpoint: tenants.integrationEndpoint,
+          integrationWorkspaceId: tenants.integrationWorkspaceId,
+          integrationLastSuccessAt: tenants.integrationLastSuccessAt,
+          integrationLastError: tenants.integrationLastError,
+          // Whether a token is set (don't return the encrypted value)
+          tokenIsSet: sql<boolean>`integration_token_encrypted IS NOT NULL`,
+        })
+        .from(tenants)
+        .where(eq(tenants.id, input.tenantId))
+        .limit(1);
+      if (!t) throw new TRPCError({ code: 'NOT_FOUND' });
+      return t;
+    }),
+
+  /** Set or clear the tenant's integration. Token is encrypted at rest. */
+  setIntegration: superAdminProcedure
+    .input(
+      z.object({
+        tenantId: z.string().uuid(),
+        kind: z.enum(['none', 'radix', 'fitness', 'generic']),
+        endpoint: z.string().url().nullable(),
+        token: z.string().min(8).nullable(), // null = leave existing token unchanged
+        workspaceId: z.string().nullable(),
+        retryPolicy: z.object({
+          maxAttempts: z.number().int().min(1).max(10).optional(),
+          baseDelayMs: z.number().int().min(100).max(60_000).optional(),
+        }).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [before] = await platformDb.select().from(tenants).where(eq(tenants.id, input.tenantId)).limit(1);
+      if (!before) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const { encrypt } = await import('@zkc/shared');
+      const patch: Partial<typeof tenants.$inferInsert> = { updatedAt: new Date() };
+      patch.integrationKind = input.kind;
+      patch.integrationEndpoint = input.endpoint;
+      patch.integrationWorkspaceId = input.workspaceId;
+      if (input.kind === 'none') {
+        // Clearing — wipe token + endpoint regardless of input
+        patch.integrationTokenEncrypted = null;
+        patch.integrationEndpoint = null;
+        patch.integrationWorkspaceId = null;
+      } else if (input.token !== null) {
+        patch.integrationTokenEncrypted = encrypt(input.token);
+      }
+      if (input.retryPolicy) patch.integrationRetryPolicy = input.retryPolicy;
+
+      await platformDb.update(tenants).set(patch).where(eq(tenants.id, input.tenantId));
+
+      await logPlatformAction(ctx, {
+        action: 'tenant.integration.update',
+        targetType: 'tenant',
+        targetId: input.tenantId,
+        tenantId: input.tenantId,
+        diff: {
+          from: { kind: before.integrationKind, endpoint: before.integrationEndpoint, workspaceId: before.integrationWorkspaceId },
+          to: { kind: input.kind, endpoint: input.endpoint, workspaceId: input.workspaceId, tokenRotated: input.token != null },
+        },
+      });
       return { ok: true as const };
     }),
 

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Download,
   Cpu,
+  MapPin,
   Trash2,
   AlertTriangle,
   Users as UsersIcon,
@@ -45,6 +46,7 @@ export default function AttendancePage({ params }: { params: Promise<{ slug: str
   const [from, setFrom] = useState<string>(''); // YYYY-MM-DD (local input)
   const [to, setTo] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [locationId, setLocationId] = useState<string | null>(null);
   const [punchType, setPunchType] = useState<PunchType | null>(null);
   const [page, setPage] = useState(0);
 
@@ -55,16 +57,18 @@ export default function AttendancePage({ params }: { params: Promise<{ slug: str
       from?: string;
       to?: string;
       deviceId?: string | null;
+      locationId?: string | null;
       punchType?: PunchType | null;
       search?: string;
     } = { tenantSlug: slug };
     if (from) f.from = new Date(`${from}T00:00:00`).toISOString();
     if (to) f.to = new Date(`${to}T23:59:59`).toISOString();
     if (deviceId) f.deviceId = deviceId;
+    if (locationId) f.locationId = locationId;
     if (punchType) f.punchType = punchType;
     if (search.trim()) f.search = search.trim();
     return f;
-  }, [slug, from, to, deviceId, punchType, search]);
+  }, [slug, from, to, deviceId, locationId, punchType, search]);
 
   const list = trpc.attendance.list.useQuery(
     { ...filters, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
@@ -73,6 +77,7 @@ export default function AttendancePage({ params }: { params: Promise<{ slug: str
   const count = trpc.attendance.count.useQuery(filters, { refetchInterval: 10_000 });
   const stats = trpc.attendance.stats.useQuery({ tenantSlug: slug }, { refetchInterval: 15_000 });
   const devices = trpc.devices.list.useQuery({ tenantSlug: slug });
+  const locations = trpc.locations.list.useQuery({ tenantSlug: slug });
   const duplicates = trpc.attendance.duplicates.useQuery({ tenantSlug: slug, days: 14 });
 
   const utils = trpc.useUtils();
@@ -91,13 +96,14 @@ export default function AttendancePage({ params }: { params: Promise<{ slug: str
   const total = count.data ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasFilters =
-    !!from || !!to || !!deviceId || !!punchType || !!search.trim();
+    !!from || !!to || !!deviceId || !!locationId || !!punchType || !!search.trim();
 
   function resetFilters() {
     setSearch('');
     setFrom('');
     setTo('');
     setDeviceId(null);
+    setLocationId(null);
     setPunchType(null);
     setPage(0);
   }
@@ -204,6 +210,29 @@ export default function AttendancePage({ params }: { params: Promise<{ slug: str
                   ))}
                 </select>
               </div>
+              {(locations.data ?? []).length > 0 && (
+                <div className="space-y-1">
+                  <Label htmlFor="location" className="text-xs">
+                    <MapPin className="mr-1 inline h-3 w-3" /> Location
+                  </Label>
+                  <select
+                    id="location"
+                    value={locationId ?? ''}
+                    onChange={(e) => {
+                      setLocationId(e.target.value || null);
+                      setPage(0);
+                    }}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">All locations</option>
+                    {(locations.data ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Punch type chips + reset */}

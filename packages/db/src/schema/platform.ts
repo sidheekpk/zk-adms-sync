@@ -39,6 +39,14 @@ export const userRoleEnum = platform.enum('user_role', [
   'read_only',
 ]);
 
+/** Integration "kind" the tenant is wired to (single config per tenant). */
+export const integrationKindEnum = platform.enum('integration_kind', [
+  'none',
+  'radix',
+  'fitness',
+  'generic',
+]);
+
 // ---------------------------------------------------------------------------
 // Better Auth core tables (kept in platform schema; Better Auth drizzle
 // adapter maps to these exact names + columns). We'll wire it up next phase.
@@ -136,9 +144,19 @@ export const tenants = platform.table(
     // Branding
     brandColor: varchar('brand_color', { length: 16 }),
     logoUrl: text('logo_url'),
-    // RadixHR mapping (used later in Phase 9)
+    // RadixHR mapping (DEPRECATED — superseded by integration_* below;
+    // kept here so existing rows still surface in queries until migrated).
     radixhrWorkspaceId: text('radixhr_workspace_id'),
     radixhrEndpoint: text('radixhr_endpoint'),
+    // ---- Platform-level integration config (2026-06-24, Phase P.1) ----
+    // ONE integration per tenant. Super-admin sets this on tenant create.
+    integrationKind: integrationKindEnum('integration_kind').notNull().default('none'),
+    integrationEndpoint: text('integration_endpoint'),
+    integrationTokenEncrypted: text('integration_token_encrypted'),
+    integrationWorkspaceId: text('integration_workspace_id'),
+    integrationRetryPolicy: jsonb('integration_retry_policy').notNull().default(sql`'{}'::jsonb`),
+    integrationLastSuccessAt: timestamp('integration_last_success_at', { withTimezone: true }),
+    integrationLastError: text('integration_last_error'),
     // Free-form settings JSON
     settings: jsonb('settings').notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

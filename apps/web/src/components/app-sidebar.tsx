@@ -21,6 +21,7 @@ import {
   Check,
   Plug,
   BarChart3,
+  MapPin,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
@@ -76,20 +77,15 @@ export function AppSidebar({ scope, tenantSlug, user }: AppSidebarProps) {
     { label: 'Audit log', href: '/audit', icon: ShieldCheck },
   ];
 
-  // Integrations entry parked until Phase 6 (sync to Radix / custom webhooks).
-  // Backend (router, worker, schemas, encryption) is shipped and inert.
-  // Toggle ENABLE_INTEGRATIONS_UI=1 in env to surface the entry locally.
-  const showIntegrations = process.env.NEXT_PUBLIC_ENABLE_INTEGRATIONS_UI === '1';
   const tenantNav = tenantSlug
     ? [
         { label: 'Dashboard', href: `/t/${tenantSlug}/dashboard`, icon: LayoutDashboard },
         { label: 'Devices', href: `/t/${tenantSlug}/devices`, icon: Cpu },
+        { label: 'Locations', href: `/t/${tenantSlug}/locations`, icon: MapPin },
         { label: 'Members', href: `/t/${tenantSlug}/members`, icon: Users },
         { label: 'Attendance', href: `/t/${tenantSlug}/attendance`, icon: Clock },
         { label: 'Reports', href: `/t/${tenantSlug}/reports`, icon: BarChart3 },
-        ...(showIntegrations
-          ? [{ label: 'Integrations', href: `/t/${tenantSlug}/integrations`, icon: Plug }]
-          : []),
+        // Integrations moved to super-admin tenant edit (Phase P.1, 2026-06-24)
         { label: 'Audit log', href: `/t/${tenantSlug}/audit`, icon: ScrollText },
         { label: 'Settings', href: `/t/${tenantSlug}/settings`, icon: Settings },
       ]

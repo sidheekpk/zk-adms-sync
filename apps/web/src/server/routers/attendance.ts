@@ -38,6 +38,7 @@ const filtersSchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   deviceId: z.string().uuid().nullable().optional(),
+  locationId: z.string().uuid().nullable().optional(),
   employeeId: z.string().uuid().nullable().optional(),
   pin: z.string().min(1).max(64).optional(),
   punchType: punchTypeEnum.nullable().optional(),
@@ -85,6 +86,7 @@ export const attendanceRouter = router({
           AND (${input.from ?? null}::timestamptz IS NULL OR a.punch_time >= ${input.from ?? null}::timestamptz)
           AND (${input.to ?? null}::timestamptz IS NULL OR a.punch_time <= ${input.to ?? null}::timestamptz)
           AND (${input.deviceId ?? null}::uuid IS NULL OR a.device_id = ${input.deviceId ?? null}::uuid)
+          AND (${input.locationId ?? null}::uuid IS NULL OR a.device_id IN (SELECT id FROM devices WHERE location_id = ${input.locationId ?? null}::uuid))
           AND (${input.employeeId ?? null}::uuid IS NULL OR a.employee_id = ${input.employeeId ?? null}::uuid)
           AND (${input.pin ?? null}::text IS NULL OR a.pin = ${input.pin ?? null}::text)
           AND (${input.punchType ?? null}::text IS NULL OR a.punch_type::text = ${input.punchType ?? null}::text)
@@ -117,6 +119,7 @@ export const attendanceRouter = router({
           AND (${input.from ?? null}::timestamptz IS NULL OR a.punch_time >= ${input.from ?? null}::timestamptz)
           AND (${input.to ?? null}::timestamptz IS NULL OR a.punch_time <= ${input.to ?? null}::timestamptz)
           AND (${input.deviceId ?? null}::uuid IS NULL OR a.device_id = ${input.deviceId ?? null}::uuid)
+          AND (${input.locationId ?? null}::uuid IS NULL OR a.device_id IN (SELECT id FROM devices WHERE location_id = ${input.locationId ?? null}::uuid))
           AND (${input.employeeId ?? null}::uuid IS NULL OR a.employee_id = ${input.employeeId ?? null}::uuid)
           AND (${input.pin ?? null}::text IS NULL OR a.pin = ${input.pin ?? null}::text)
           AND (${input.punchType ?? null}::text IS NULL OR a.punch_type::text = ${input.punchType ?? null}::text)
@@ -219,7 +222,10 @@ export const attendanceRouter = router({
       `;
     }),
 
-  /** Quick stats card: total / today / this week (in tenant timezone). */
+  /**
+   * Dashboard stats: today / yesterday / this week / unique today,
+   * computed in the tenant's timezone, voids excluded.
+   */
   stats: tenantProcedure
     .input(z.object({ tenantSlug: z.string() }))
     .query(async ({ ctx }) => {
@@ -229,19 +235,23 @@ export const attendanceRouter = router({
         Array<{
           total: number;
           today: number;
+          yesterday: number;
           week: number;
           unique_today: number;
+          unique_yesterday: number;
         }>
       >`
         SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE (punch_time AT TIME ZONE ${tz})::date = (NOW() AT TIME ZONE ${tz})::date)::int AS today,
+          COUNT(*) FILTER (WHERE (punch_time AT TIME ZONE ${tz})::date = ((NOW() AT TIME ZONE ${tz})::date - 1))::int AS yesterday,
           COUNT(*) FILTER (WHERE punch_time >= date_trunc('week', NOW() AT TIME ZONE ${tz}) AT TIME ZONE ${tz})::int AS week,
-          COUNT(DISTINCT employee_id) FILTER (WHERE (punch_time AT TIME ZONE ${tz})::date = (NOW() AT TIME ZONE ${tz})::date)::int AS unique_today
+          COUNT(DISTINCT employee_id) FILTER (WHERE (punch_time AT TIME ZONE ${tz})::date = (NOW() AT TIME ZONE ${tz})::date)::int AS unique_today,
+          COUNT(DISTINCT employee_id) FILTER (WHERE (punch_time AT TIME ZONE ${tz})::date = ((NOW() AT TIME ZONE ${tz})::date - 1))::int AS unique_yesterday
         FROM attendance_logs
         WHERE voided_at IS NULL
       `;
-      return rows[0] ?? { total: 0, today: 0, week: 0, unique_today: 0 };
+      return rows[0] ?? { total: 0, today: 0, yesterday: 0, week: 0, unique_today: 0, unique_yesterday: 0 };
     }),
 
   // ---- Correction workflow ----------------------------------------------

@@ -88,7 +88,7 @@ export function LoginForm() {
                   required
                   autoComplete="email"
                   autoFocus
-                  placeholder="you@radixhr.app"
+                  placeholder="you@example.com"
                   className="pl-9"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

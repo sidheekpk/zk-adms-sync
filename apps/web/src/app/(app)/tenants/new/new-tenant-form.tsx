@@ -32,6 +32,10 @@ export function NewTenantForm() {
     operatorPassword: '',
     confirmOperatorPassword: '',
     adminEmail: '',
+    integrationKind: 'none' as 'none' | 'radix' | 'fitness' | 'generic',
+    integrationEndpoint: '',
+    integrationToken: '',
+    integrationWorkspaceId: '',
   });
 
   function setField<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -57,6 +61,12 @@ export function NewTenantForm() {
       toast.error('Operator password must be at least 6 characters');
       return;
     }
+    if (form.integrationKind !== 'none') {
+      if (!form.integrationEndpoint.trim() || !form.integrationToken.trim()) {
+        toast.error('Integration endpoint and token are required when a kind is selected');
+        return;
+      }
+    }
     startTransition(async () => {
       try {
         const tenant = await create.mutateAsync({
@@ -65,6 +75,15 @@ export function NewTenantForm() {
           timezone: form.timezone,
           operatorPassword: form.operatorPassword,
           adminEmail: form.adminEmail || undefined,
+          integration:
+            form.integrationKind === 'none'
+              ? undefined
+              : {
+                  kind: form.integrationKind,
+                  endpoint: form.integrationEndpoint.trim(),
+                  token: form.integrationToken,
+                  workspaceId: form.integrationWorkspaceId.trim() || undefined,
+                },
         });
         toast.success('Tenant provisioned');
         router.push(`/t/${tenant.slug}/dashboard`);
@@ -92,7 +111,7 @@ export function NewTenantForm() {
                   setField('name', e.target.value);
                   if (!form.slug) setField('slug', autoSlug(e.target.value));
                 }}
-                placeholder="2DOT4 Diamonds LLC"
+                placeholder="e.g. Acme Corporation"
                 required
               />
             </div>
@@ -103,7 +122,7 @@ export function NewTenantForm() {
                 value={form.slug}
                 onChange={(e) => setField('slug', e.target.value)}
                 pattern="[a-z][a-z0-9-]+[a-z0-9]"
-                placeholder="2dot4-diamonds"
+                placeholder="acme-corp"
                 required
               />
               <p className="text-xs text-muted-foreground">
@@ -179,9 +198,77 @@ export function NewTenantForm() {
                 type="email"
                 value={form.adminEmail}
                 onChange={(e) => setField('adminEmail', e.target.value)}
-                placeholder="hr@2dot4.ae"
+                placeholder="admin@example.com"
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Integration (optional)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Wire this tenant to an external app (Radix HR, fitness, generic webhook) at creation time.
+              You can also set this later from the tenant edit page.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2 max-w-md">
+              <Label htmlFor="ikind">Kind</Label>
+              <select
+                id="ikind"
+                value={form.integrationKind}
+                onChange={(e) =>
+                  setField('integrationKind', e.target.value as typeof form.integrationKind)
+                }
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs"
+              >
+                <option value="none">No integration (set later)</option>
+                <option value="radix">Radix HR / Workly</option>
+                <option value="fitness">Fitness app (gym/membership)</option>
+                <option value="generic">Generic webhook</option>
+              </select>
+            </div>
+
+            {form.integrationKind !== 'none' && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="iendpoint">Webhook URL</Label>
+                  <Input
+                    id="iendpoint"
+                    type="url"
+                    value={form.integrationEndpoint}
+                    onChange={(e) => setField('integrationEndpoint', e.target.value)}
+                    placeholder="https://api.example.com/biometric/webhook"
+                    className="font-mono text-sm"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="itoken">API token</Label>
+                  <Input
+                    id="itoken"
+                    type="password"
+                    value={form.integrationToken}
+                    onChange={(e) => setField('integrationToken', e.target.value)}
+                    placeholder="••••••••"
+                    className="font-mono text-sm"
+                    minLength={8}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Encrypted at rest (AES-256-GCM).</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="iworkspace">Workspace / external ID (optional)</Label>
+                  <Input
+                    id="iworkspace"
+                    value={form.integrationWorkspaceId}
+                    onChange={(e) => setField('integrationWorkspaceId', e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
